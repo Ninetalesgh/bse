@@ -67,7 +67,7 @@ namespace win64
     DWORD WINAPI xInputSetState( DWORD, XINPUT_VIBRATION* ) { return ERROR_DEVICE_NOT_CONNECTED; }
   };
 
-  struct App
+  struct BseCore
   {
     HMODULE dll;
     bse::core_initialize_fn* initialize = stub::core_initialize;
@@ -80,7 +80,7 @@ namespace win64
     static xInputGetState_fn* xInputGetState;
     static xInputSetState_fn* xInputSetState;
     static s64                performanceCounterFrequency;
-    static App                app;
+    static BseCore            core;
     static bse::Platform      platform;
     static HMODULE            openglDll;
     static HWND               mainWindow;
@@ -88,6 +88,8 @@ namespace win64
     static float              spfCap; // if there is no cap on fps, this should be 0
     static bool               running;
   };
+
+  void set_fps_cap( float fps ) { global::spfCap = fps ? 1.0f / fps : 0.0f; }
 
   INLINE LARGE_INTEGER get_timer()
   {

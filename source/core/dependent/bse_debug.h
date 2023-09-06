@@ -1,12 +1,8 @@
 #pragma once
 
-#include "agnostic/bse_string_format.h"
+#include "bse_core.h"
 
-
-#define BSE_LOG( ... ) bse::debug::log()
-
-
-
+#define log_info( ... ) bse::debug::log({bse::debug::LogSeverity::INFO, bse::debug::LogOutputType::LOCAL_CONSOLE}, __FILE__, __LINE__, __VA_ARGS__)
 
 namespace bse
 {
@@ -35,7 +31,6 @@ namespace bse
     };
 
     template<typename... Args> void log( LogParameters const& parameters, Args... args );
-
   };
 };
 
@@ -54,7 +49,7 @@ namespace bse
     {
       s32 const MAX_DEBUG_MESSAGE_LENGTH = 8192;
       char debugBuffer[MAX_DEBUG_MESSAGE_LENGTH];
-      s32 bytesToWrite = bs::string_format( debugBuffer, MAX_DEBUG_MESSAGE_LENGTH, args... ) - 1 /* ommit null */;
+      s32 bytesToWrite = bse::string_format( debugBuffer, MAX_DEBUG_MESSAGE_LENGTH, args... ) - 1 /* ommit null */;
       if ( bytesToWrite > 0 )
       {
         if ( debugBuffer[bytesToWrite - 1] != '\n' )
@@ -63,7 +58,7 @@ namespace bse
           debugBuffer[bytesToWrite] = '\0';
         }
 
-        log_callback( parameters, debugBuffer, bytesToWrite );
+        platform->callback.debug_log( parameters, debugBuffer, bytesToWrite );
       }
     }
   };

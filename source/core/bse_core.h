@@ -68,6 +68,7 @@ namespace bse
       int2 position;
       bool fullscreen;
       bool skipInitWindow;
+      float fpsCap;
     } window;
 
     struct // WORKER THREADS
@@ -101,7 +102,6 @@ namespace bse
   using core_tick_fn = void( Platform* );
   extern "C" core_tick_fn core_tick_internal;
 };
-
 
 #if defined(BSE_APP_TO_BUILD)
 //include apps here?

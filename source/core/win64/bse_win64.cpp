@@ -1,8 +1,9 @@
 #include "bse_win64.h"
 #include "bse_win64_opengl.h"
+#include "bse_win64_platform_callbacks.h"
 
 LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wParam, LPARAM lParam );
-void bse_init_core();
+void bse_win64_init_core();
 void bse_win64_loop();
 
 int bse_main( int argc, char** argv )
@@ -11,26 +12,32 @@ int bse_main( int argc, char** argv )
   result = QueryPerformanceFrequency( (LARGE_INTEGER*) &win64::global::performanceCounterFrequency );
   assert( result );
 
-  ////////////////////////////////////////////////////////////////////////
-  //// Init Core and fetch app specifications for platform ///////////////
-  ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init Core and fetch app specifications for platform ///////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  bse_init_core();
+  bse_win64_init_core();
   bse::PlatformInitParams initParams;
   initParams.programHandle = GetModuleHandle( NULL );
   initParams.commandLine.argumentCount = argc;
   initParams.commandLine.arguments = argv;
-  win64::global::app.initialize( &initParams );
+  win64::global::core.initialize( &initParams );
 
-  ////////////////////////////////////////////////////////////////////////
-  ////////// Init Console (Is this relevant?) ////////////////////////////
-  ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init Console (Is this relevant?) //////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   if ( !initParams.console.skipInitConsole ) { CoInitializeEx( 0, COINIT_MULTITHREADED ); }
 
-  ////////////////////////////////////////////////////////////////////////
-  ////////// Init Network ////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init Callbacks so we are able to use debug logs and the like //////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  win64::register_platform_callbacks();
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init Network //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   #if defined(BSE_BUILD_NETWORK)
   if ( !initParams.network.skipInitNetwork )
@@ -41,9 +48,9 @@ int bse_main( int argc, char** argv )
   }
   #endif
 
-  ////////////////////////////////////////////////////////////////////////
-  ////////// Init Input //////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init Input ////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   #if defined(BSE_BUILD_INPUT)
   if ( !initParams.input.skipInitController )
@@ -52,9 +59,9 @@ int bse_main( int argc, char** argv )
   }
   #endif
 
-  ////////////////////////////////////////////////////////////////////////
-  ////////// Init Graphics ///////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init Graphics /////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   #if defined (BSE_BUILD_GRAPHICS)
   win64::global::openglDll = LoadLibraryA( "opengl32.dll" );
@@ -90,9 +97,9 @@ int bse_main( int argc, char** argv )
   }
   #endif
 
-  ////////////////////////////////////////////////////////////////////////
-  ////////// Init Audio //////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init Audio ////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   #if defined (BSE_BUILD_AUDIO)    
   if ( !initParams.audio.skipInitAudio )
@@ -100,42 +107,43 @@ int bse_main( int argc, char** argv )
   }
   #endif
 
-  ////////////////////////////////////////////////////////////////////////
-  ////////// Init Worker Threads /////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init Worker Threads ///////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   {
 
   }
 
-  ////////////////////////////////////////////////////////////////////////
-  ////////// Init Time  //////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init Time  ////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   {
     result = (s32) timeBeginPeriod( 1 );
     assert( result == TIMERR_NOERROR );
+    win64::set_fps_cap( initParams.window.fpsCap );
   }
 
-  ////////////////////////////////////////////////////////////////////////
-  ////////// Init App Callbacks //////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init App Callbacks ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  {
+    win64::global::core.on_reload( &win64::global::platform );
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init App //////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   {
 
   }
 
-  ////////////////////////////////////////////////////////////////////////
-  ////////// Init App ////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////
-
-  {
-
-  }
-
-  ////////////////////////////////////////////////////////////////////////
-  ////////// Run Core Loop ///////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Run Core Loop /////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   win64::global::running = true;
   while ( win64::global::running )
@@ -149,76 +157,163 @@ int bse_main( int argc, char** argv )
 
     //4) Increase Frame Index
     ++win64::global::platform.thisFrame.frameIndex;
-    printf( "%d", u32( win64::global::platform.thisFrame.frameIndex ) );
   }
 
   return result;
 }
 
+void bse_win64_process_window_messages();
+
 void bse_win64_loop()
 {
-
   LARGE_INTEGER beginCounter = win64::get_timer();
 
-  ////////////////////////////////////////////////////////////////////////
-  ////////// Process Input & Window Messages /////////////////////////////
-  ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Process Input & Window Messages ///////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  bse_win64_process_window_messages();
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Process Core Tick /////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   {
-    //peek input message
-
-    win64::process_controller_input( win64::global::platform.thisFrame.input );
+    win64::global::core.tick( &win64::global::platform );
   }
 
-  ////////////////////////////////////////////////////////////////////////
-  ////////// Process Core Tick ///////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Adjust to FPS /////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   {
-
-  }
-
-  ////////////////////////////////////////////////////////////////////////
-  ////////// Adjust FPS //////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////
-
-  {
-    constexpr float APP_TARGET_FPS = 60.0f;
-    constexpr float APP_TARGET_SPF = 1.0f / float( APP_TARGET_FPS );
     static float sleepMsSubtraction = 0.0f;
 
     float secondsElapsed = win64::get_seconds_elapsed( beginCounter, win64::get_timer() );
 
     if ( win64::global::spfCap )
     {
-
       //      PROFILE_SCOPE( debug_CyclesSleep );
-      if ( secondsElapsed < APP_TARGET_SPF )
+      if ( secondsElapsed < win64::global::spfCap )
       {
-        float const msSleep = ((APP_TARGET_SPF - secondsElapsed) * 1000.f) + sleepMsSubtraction;
+        float const msSleep = ((win64::global::spfCap - secondsElapsed) * 1000.f) + sleepMsSubtraction;
         // thread::sleep( s32( max( msSleep, 0.0f ) ) );
         float secondsElapsedIncludingSleep =  win64::get_seconds_elapsed( beginCounter, win64::get_timer() );
-        float const delta = 1000.0f * (APP_TARGET_SPF - secondsElapsedIncludingSleep);
+        float const delta = 1000.0f * (win64::global::spfCap - secondsElapsedIncludingSleep);
         sleepMsSubtraction += min( 0.f, delta ) - (delta > 2.0f) * 1.0f;
 
-        //   log_info( "[WIN32_CLOCK] frame ", win64::global::appData.currentFrameIndex, " had ", delta, " ms left after sleeping for ", max( msSleep, 0.f ),
+
+        //   log_info( "[WIN32_CLOCK] frame ", win64::global::coreData.currentFrameIndex, " had ", delta, " ms left after sleeping for ", max( msSleep, 0.f ),
         //                                        " ms\n - - - next sleep reduced by ", -sleepMsSubtraction, " ms\n" );
         do
         {
           secondsElapsedIncludingSleep = win64::get_seconds_elapsed( beginCounter, win64::get_timer() );
-        } while ( secondsElapsedIncludingSleep < APP_TARGET_SPF );
+        } while ( secondsElapsedIncludingSleep < win64::global::spfCap );
       }
       else
       {
-        //  log_info( "[WIN32_CLOCK] Missed fps target for frame: ", win64::global::appData.currentFrameIndex,
+        //  log_info( "[WIN32_CLOCK] Missed fps target for frame: ", win64::global::coreData.currentFrameIndex,
         //                                        "\n- - - - - - - Actual ms: ", 1000.f * secondsElapsed,
         //                                       "   fps: ", float( 1.f / secondsElapsed ), "\n" );
       }
     } // PROFILE_SCOPE( debug_CyclesSleep );
-
-    //LARGE_INTEGER endCounter = win64::get_timer();
   }
 
+  //LARGE_INTEGER endCounter = win64::get_timer();
+}
+
+void bse_win64_process_window_messages()
+{
+  bse::Input& input = win64::global::platform.thisFrame.input;
+  memset( input.down, 0, bse::Input::STATE_COUNT );
+  MSG message;
+  while ( PeekMessage( &message, 0, 0, 0, PM_REMOVE ) )
+  {
+    input.mousePos[0].start = input.mousePos[0].end;
+
+    switch ( message.message )
+    {
+      case WM_XBUTTONDOWN:
+      case WM_XBUTTONUP:
+      {
+        assert( message.wParam == 65568 || message.wParam == 131136 );
+        u32 code = message.wParam == 65568 ? bse::Input::MOUSE_4 : bse::Input::MOUSE_5;
+        u8 isDown = (u8) !(message.lParam & (1 << 31));
+        u8 wasDown = input.held[code];
+        input.down[code] = ((!wasDown) && isDown);
+        input.held[code] = isDown;
+        break;
+      }
+      case WM_MOUSEWHEEL:
+      {
+        input.mouseWheelDelta = GET_WHEEL_DELTA_WPARAM( message.wParam ) / WHEEL_DELTA;
+        //TODO what is this constant here?
+        //DEBUG::scale -= float( input.mouseWheelDelta ) * 0.03f;
+        break;
+      }
+      case WM_MOUSEMOVE:
+      {
+        input.mousePos[0].min
+          = input.mousePos[0].max
+          = input.mousePos[0].end
+          = { s32( s16( LOWORD( message.lParam ) ) ), s32( s16( HIWORD( message.lParam ) ) ) };
+        break;
+      }
+      case WM_LBUTTONDOWN:
+      case WM_LBUTTONUP:
+      case WM_RBUTTONDOWN:
+      case WM_RBUTTONUP:
+      case WM_MBUTTONDOWN:
+      case WM_MBUTTONUP:
+      case WM_SYSKEYDOWN:
+      case WM_SYSKEYUP:
+      case WM_KEYDOWN:
+      case WM_KEYUP:
+      {
+        assert( message.wParam < bse::Input::STATE_COUNT );
+        u32 code = (u32) message.wParam;
+
+        u8 isDown = (u8) !(message.lParam & (1 << 31));
+        u8 wasDown = input.held[code];
+        input.held[code] = isDown;
+
+        if ( !wasDown && isDown )
+        {
+          switch ( code )
+          {
+            case bse::Input::KEY_F9:
+              break;
+            case bse::Input::KEY_F10:
+              break;
+            case bse::Input::KEY_F11:
+              break;
+            case bse::Input::KEY_F12:
+              // win32::ServerHandshake( global::netData.udpSocket, global::netData.server, global_debugUsername );
+              break;
+            case bse::Input::KEY_ESCAPE:
+              win64::global::running = false;
+              break;
+            default:
+              input.down[code] = 1;
+              break;
+          }
+        }
+
+        //TODO REMOVE HARDCODED SHIT
+        if ( input.held[bse::Input::KEY_ALT] && input.down[bse::Input::KEY_F4] ) win64::global::running = false;
+
+        break;
+      }
+      default:
+      {
+        TranslateMessage( &message );
+        DispatchMessage( &message );
+      }
+      break;
+    }
+
+    win64::process_controller_input( win64::global::platform.thisFrame.input );
+  }
 }
 
 
@@ -257,7 +352,7 @@ LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wPa
     {
       if ( !wParam )
       {
-        //        memset( win64::global::appData.input.held, 0, bs::input::STATE_COUNT );
+        //        memset( win64::global::coreData.input.held, 0, bse::Input::STATE_COUNT );
       }
       break;
     }
@@ -271,18 +366,19 @@ LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wPa
   return result;
 }
 
+
 #if defined (BSE_RELEASE_BUILD)
 #include "bse_core.cpp"
 
-void bse_init_core()
+void bse_win64_init_core()
 {
-  win64::global::app.initialize = &bse::core_initialize_internal;
-  win64::global::app.on_reload = &bse::core_on_reload_internal;
-  win64::global::app.tick = &bse::core_tick_internal;
+  win64::global::core.initialize = &bse::core_initialize_internal;
+  win64::global::core.on_reload = &bse::core_on_reload_internal;
+  win64::global::core.tick = &bse::core_tick_internal;
 
   // char exePath[1024] = {};
   // win64::get_exe_path( exePath, 1024 );
-  win64::global::app.initialize( initParams );
+  win64::global::core.initialize( initParams );
 }
 
 #else
@@ -291,9 +387,9 @@ char const* BSE_TMP_CORE_FILENAME_0 = "bse_core0.tmp.dll";
 char const* BSE_TMP_CORE_FILENAME_1 = "bse_core1.tmp.dll";
 char const* BSE_APP_FILENAME = "bse_core.dll";
 
-void bse_init_core()
+void bse_win64_init_core()
 {
-  win64::App& newApp = win64::global::app;
+  win64::BseCore& coreDll = win64::global::core;
 
   _WIN32_FIND_DATAA findData;
   HANDLE findHandle = FindFirstFileA( BSE_APP_FILENAME, &findData );
@@ -303,14 +399,14 @@ void bse_init_core()
 
     if ( CopyFileA( BSE_APP_FILENAME, BSE_TMP_CORE_FILENAME_0, false ) )
     {
-      newApp.dll = LoadLibraryA( BSE_TMP_CORE_FILENAME_0 );//~120M cycles
-      if ( newApp.dll )
+      coreDll.dll = LoadLibraryA( BSE_TMP_CORE_FILENAME_0 );//~120M cycles
+      if ( coreDll.dll )
       {
-        newApp.initialize = (bse::core_initialize_fn*) GetProcAddress( newApp.dll, "core_initialize_internal" );
-        newApp.on_reload = (bse::core_on_reload_fn*) GetProcAddress( newApp.dll, "core_on_reload_internal" );
-        newApp.tick = (bse::core_tick_fn*) GetProcAddress( newApp.dll, "core_tick_internal" );
+        coreDll.initialize = (bse::core_initialize_fn*) GetProcAddress( coreDll.dll, "core_initialize_internal" );
+        coreDll.on_reload = (bse::core_on_reload_fn*) GetProcAddress( coreDll.dll, "core_on_reload_internal" );
+        coreDll.tick = (bse::core_tick_fn*) GetProcAddress( coreDll.dll, "core_tick_internal" );
 
-        if ( newApp.initialize && newApp.on_reload && newApp.tick )
+        if ( coreDll.initialize && coreDll.on_reload && coreDll.tick )
         {
         }
         else
