@@ -49,13 +49,28 @@ namespace bse
 
   } extern* platform;
 
-  struct PlatformInitializationParameters
+  struct PlatformInitParams
   {
+    char const* exePath;
     char const** cmdline;
 
+    struct Window
+    {
+      char const* name;
+      int2 size;
+      int2 position;
+      bool fullscreen;
+      bool skipInit;
+    } window;
+
+    struct WorkerThreads
+    {
+      s32 syncableWorkerThreadCount;
+      s32 asyncWorkerThreadCount;
+    } threads;
   };
 
-  using core_initialize_fn = void( PlatformInitializationParameters* );
+  using core_initialize_fn = void( PlatformInitParams* );
   extern "C" core_initialize_fn core_initialize_internal;
 
   using core_on_reload_fn = void( Platform* );

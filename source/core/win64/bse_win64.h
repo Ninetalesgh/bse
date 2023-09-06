@@ -24,14 +24,37 @@
 #endif
 #include <Xinput.h>
 
+constexpr s32 MAX_BSE_PATH = 1024;
 namespace win64
 {
+  s32 utf8_to_wchar( char const* utf8String, wchar_t* out_wcharString, s32 wcharLengthMax )
+  {
+    s32 wcharLength = MultiByteToWideChar( CP_UTF8, 0, utf8String, -1, 0, 0 );
+    assert( wcharLength <= wcharLengthMax );
+    return MultiByteToWideChar( CP_UTF8, 0, utf8String, -1, out_wcharString, min( wcharLength, wcharLengthMax ) );
+  }
+
+  s32 wchar_to_utf8( wchar_t const* wcharString, char* out_utf8String, s32 utf8StringLengthMax )
+  {
+    s32 utf8StringLength = WideCharToMultiByte( CP_UTF8, 0, wcharString, -1, 0, 0, 0, 0 );
+    assert( utf8StringLength <= utf8StringLengthMax );
+    return WideCharToMultiByte( CP_UTF8, 0, wcharString, -1, out_utf8String, min( utf8StringLength, utf8StringLengthMax ), 0, 0 );
+  }
+
+  s32 get_exe_path( char* out_exePath, s32 exePathLengthMax )
+  {
+    wchar_t wideChars[MAX_BSE_PATH];
+    s32 filePathLength = GetModuleFileNameW( 0, wideChars, MAX_BSE_PATH );
+    assert( filePathLength <= exePathLengthMax );
+    return wchar_to_utf8( wideChars, out_exePath, exePathLengthMax );
+  }
+
   using xInputGetState_fn = DWORD WINAPI( DWORD, XINPUT_STATE* );
   using xInputSetState_fn = DWORD WINAPI( DWORD, XINPUT_VIBRATION* );
 
   namespace stub
   {
-    void core_initialize( bse::PlatformInitializationParameters* ) {}
+    void core_initialize( bse::PlatformInitParams* ) {}
     void core_on_reload( bse::Platform* ) {}
     void core_tick( bse::Platform* ) {}
 
@@ -57,10 +80,9 @@ namespace win64
   };
 
 
-
   struct WindowInitParameter
   {
-    LPCWCHAR windowName;
+    char const* windowName;
     WNDCLASSEX wndClass;
     s32 x;
     s32 y;
@@ -70,12 +92,14 @@ namespace win64
   HWND init_window( WindowInitParameter const& parameter )
   {
     HWND resultWindow = 0;
+    wchar_t nameBuffer[MAX_BSE_PATH] = {};
+    utf8_to_wchar( parameter.windowName, nameBuffer, MAX_BSE_PATH );
 
     if ( RegisterClassEx( &parameter.wndClass ) )
     {
       resultWindow = CreateWindowEx( WS_EX_ACCEPTFILES,                // DWORD dwExStyle,                                  
                                      parameter.wndClass.lpszClassName, // LPCWSTR lpClassName,                                  
-                                     parameter.windowName,             // LPCWSTR lpWindowName,                     
+                                     nameBuffer,                       // LPCWSTR lpWindowName,                     
                                      WS_OVERLAPPEDWINDOW | WS_VISIBLE, // DWORD dwStyle,                                 
                                      parameter.x,                      // int X,               
                                      parameter.y,                      // int Y,              
@@ -166,6 +190,8 @@ namespace win64
     //   global::xInputSetState( 0, &vibrationState );
     // }
   }
+
+
 
 };
 

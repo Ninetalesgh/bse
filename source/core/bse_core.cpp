@@ -3,9 +3,11 @@
 
 namespace bse
 {
-  void core_initialize_internal( PlatformInitializationParameters* platformParameters )
+  void core_initialize_internal( PlatformInitParams* platformParameters )
   {
-    BREAK;
+    platformParameters->window.size = int2 { 1024,720 };
+    platformParameters->window.position = int2 { -platformParameters->window.size.x - 200, 200 };
+
   }
 
   void core_on_reload_internal( Platform* pf )
