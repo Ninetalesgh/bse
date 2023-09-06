@@ -59,13 +59,15 @@ int bse_main( int argc, char** argv )
   CoInitializeEx( 0, COINIT_MULTITHREADED );
   s32 result = 1;
   HINSTANCE hInstance = GetModuleHandle( NULL );
-  //TODO forward args to app, app should have a full shortcut built in
 
 
   result = QueryPerformanceFrequency( (LARGE_INTEGER*) &win64::global::performanceCounterFrequency );
   assert( result );
 
   bse_init_core();
+
+  //TODO forward args to app, app should have a full shortcut built in
+
 
   #if defined(BSE_BUILD_NETWORK)
   WSADATA wsaData;

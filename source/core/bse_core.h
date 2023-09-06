@@ -51,7 +51,8 @@ namespace bse
 
   struct PlatformInitializationParameters
   {
-    int test;
+    char const** cmdline;
+
   };
 
   using core_initialize_fn = void( PlatformInitializationParameters* );

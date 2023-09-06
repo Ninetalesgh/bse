@@ -7,10 +7,12 @@ namespace bse
   {
     BREAK;
   }
+
   void core_on_reload_internal( Platform* pf )
   {
     BREAK;
   }
+
   void core_tick_internal( Platform* pf )
   {
     BREAK;
