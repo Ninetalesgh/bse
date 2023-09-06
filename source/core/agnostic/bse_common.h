@@ -14,8 +14,8 @@
 # define BREAK __debugbreak()
 # define assert(expression) { if ( !(expression) ) BREAK; }
 #else
-# define BREAK
-# define assert(expression)
+# define BREAK {}
+# define assert(expression) {}
 #endif
 
 #define array_count(array) (sizeof(array) / (sizeof((array)[0])))

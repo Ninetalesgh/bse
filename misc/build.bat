@@ -40,7 +40,7 @@ IF %build_mode%=="release" goto build_release
 
   set compiler_options_release=%compiler_options% /Ox /DBSE_BUILD_RELEASE
   
-  cl %codepath%\brewing_station_main.cpp /Fe:brewing_station.exe %compiler_options_release% %linker_options% 
+  cl %codepath%\bse_main.cpp /Fe:bse.exe %compiler_options_release% %linker_options% 
   echo ------------------------------------
 
   del *.obj > NUL 2> NUL

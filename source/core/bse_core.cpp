@@ -5,6 +5,8 @@ namespace bse
 {
   void core_initialize_internal( PlatformInitParams* platformParameters )
   {
+
+    platformParameters->window.name = "bse";
     platformParameters->window.size = int2 { 1024,720 };
     platformParameters->window.position = int2 { -platformParameters->window.size.x - 200, 200 };
 

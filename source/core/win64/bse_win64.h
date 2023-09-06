@@ -8,8 +8,13 @@
 #pragma comment(lib,"winmm.lib")
 //CoInitialize
 #pragma comment(lib,"Ole32.lib")
+//wgl
+#pragma comment(lib,"opengl32.lib")
+#pragma comment(lib,"Gdi32.lib")
+
 
 #include "bse_core.h"
+#include <stdio.h>
 
 #include <windows.h>
 #ifdef ERROR
@@ -77,6 +82,11 @@ namespace win64
     static s64                performanceCounterFrequency;
     static App                app;
     static bse::Platform      platform;
+    static HMODULE            openglDll;
+    static HWND               mainWindow;
+    static int2               mainWindowSize;
+    static bool               running;
+
   };
 
 
@@ -94,11 +104,12 @@ namespace win64
     HWND resultWindow = 0;
     wchar_t nameBuffer[MAX_BSE_PATH] = {};
     utf8_to_wchar( parameter.windowName, nameBuffer, MAX_BSE_PATH );
+    WNDCLASSEX const& wndClass = parameter.wndClass;
 
-    if ( RegisterClassEx( &parameter.wndClass ) )
+    if ( RegisterClassEx( &wndClass ) )
     {
       resultWindow = CreateWindowEx( WS_EX_ACCEPTFILES,                // DWORD dwExStyle,                                  
-                                     parameter.wndClass.lpszClassName, // LPCWSTR lpClassName,                                  
+                                     wndClass.lpszClassName, // LPCWSTR lpClassName,                                  
                                      nameBuffer,                       // LPCWSTR lpWindowName,                     
                                      WS_OVERLAPPEDWINDOW | WS_VISIBLE, // DWORD dwStyle,                                 
                                      parameter.x,                      // int X,               
@@ -107,8 +118,8 @@ namespace win64
                                      parameter.height,                 // int nHeight,              
                                      /*parent window*/ 0,              // HWND hWndParent,                    
                                      /*menu*/ 0,                       // HMENU hMenu,           
-                                     parameter.wndClass.hInstance,     // HINSTANCE hInstance,                             
-                                     0 );                              // LPVOID lpParam    
+                                     wndClass.hInstance,     // HINSTANCE hInstance,                             
+                                     0 );                              // LPVOID lpParam 
     }
     return resultWindow;
   }

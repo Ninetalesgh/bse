@@ -52,22 +52,47 @@ namespace bse
   struct PlatformInitParams
   {
     char const* exePath;
-    char const** cmdline;
+    struct
+    {
+      s32 argumentCount;
+      char** arguments;
+    } commandLine;
 
-    struct Window
+    struct
+    {
+      bool skipInitMouseAndKeyboard;
+      bool skipInitController;
+    } input;
+
+    struct
     {
       char const* name;
       int2 size;
       int2 position;
       bool fullscreen;
-      bool skipInit;
+      bool skipInitWindow;
     } window;
 
-    struct WorkerThreads
+    struct
     {
-      s32 syncableWorkerThreadCount;
-      s32 asyncWorkerThreadCount;
-    } threads;
+      s32 syncableCount;
+      s32 asyncCount;
+    } workerThreads;
+
+    struct
+    {
+      bool skipInitAudio;
+    } audio;
+
+    struct
+    {
+      bool skipInitNetwork;
+    } network;
+
+    struct
+    {
+      bool skipInitConsole;
+    } console;
   };
 
   using core_initialize_fn = void( PlatformInitParams* );
