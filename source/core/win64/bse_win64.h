@@ -85,10 +85,21 @@ namespace win64
     static HMODULE            openglDll;
     static HWND               mainWindow;
     static int2               mainWindowSize;
+    static float              spfCap; // if there is no cap on fps, this should be 0
     static bool               running;
-
   };
 
+  INLINE LARGE_INTEGER get_timer()
+  {
+    LARGE_INTEGER result;
+    QueryPerformanceCounter( &result );
+    return result;
+  }
+
+  INLINE float get_seconds_elapsed( LARGE_INTEGER beginCounter, LARGE_INTEGER endCounter )
+  {
+    return float( endCounter.QuadPart - beginCounter.QuadPart ) / float( global::performanceCounterFrequency );
+  }
 
   struct WindowInitParameter
   {
@@ -151,13 +162,13 @@ namespace win64
     }
   }
 
-  INLINE void ProcessXInputDigitalButton( WORD wButtons, DWORD buttonBit, bse::Input::ControllerButton& state, bse::Input::ControllerButton const& oldState )
+  INLINE void process_xInput_digital_button( WORD wButtons, DWORD buttonBit, bse::Input::ControllerButton& state, bse::Input::ControllerButton const& oldState )
   {
     state.halfTransitionCount = (state.endedDown != oldState.endedDown) ? 1 : 0;
     state.endedDown = wButtons & buttonBit;
   }
 
-  void ProcessControllerInput( bse::Input& input )
+  void process_controller_input( bse::Input& input )
   {
     constexpr s32 supportedControllers = array_count( input.controller );
     constexpr s32 maxControllerCount = min( supportedControllers, XUSER_MAX_COUNT );
@@ -171,12 +182,12 @@ namespace win64
         XINPUT_GAMEPAD& pad = controllerState.Gamepad;
         bse::Input::Controller& newController = input.controller[iController];
 
-        ProcessXInputDigitalButton( pad.wButtons, XINPUT_GAMEPAD_DPAD_UP, newController.up, newController.up );
-        ProcessXInputDigitalButton( pad.wButtons, XINPUT_GAMEPAD_DPAD_DOWN, newController.down, newController.down );
-        ProcessXInputDigitalButton( pad.wButtons, XINPUT_GAMEPAD_DPAD_LEFT, newController.left, newController.left );
-        ProcessXInputDigitalButton( pad.wButtons, XINPUT_GAMEPAD_DPAD_RIGHT, newController.right, newController.right );
-        ProcessXInputDigitalButton( pad.wButtons, XINPUT_GAMEPAD_LEFT_SHOULDER, newController.leftShoulder, newController.leftShoulder );
-        ProcessXInputDigitalButton( pad.wButtons, XINPUT_GAMEPAD_RIGHT_SHOULDER, newController.rightShoulder, newController.rightShoulder );
+        process_xInput_digital_button( pad.wButtons, XINPUT_GAMEPAD_DPAD_UP, newController.up, newController.up );
+        process_xInput_digital_button( pad.wButtons, XINPUT_GAMEPAD_DPAD_DOWN, newController.down, newController.down );
+        process_xInput_digital_button( pad.wButtons, XINPUT_GAMEPAD_DPAD_LEFT, newController.left, newController.left );
+        process_xInput_digital_button( pad.wButtons, XINPUT_GAMEPAD_DPAD_RIGHT, newController.right, newController.right );
+        process_xInput_digital_button( pad.wButtons, XINPUT_GAMEPAD_LEFT_SHOULDER, newController.leftShoulder, newController.leftShoulder );
+        process_xInput_digital_button( pad.wButtons, XINPUT_GAMEPAD_RIGHT_SHOULDER, newController.rightShoulder, newController.rightShoulder );
 
         float stickX         = float( pad.sThumbLX ) / (pad.sThumbLX < 0 ? 32768.f : 32767.f);
         float stickY         = float( pad.sThumbLY ) / (pad.sThumbLY < 0 ? 32768.f : 32767.f);

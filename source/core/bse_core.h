@@ -5,7 +5,6 @@
 #define BSE_BUILD_AUDIO
 #define BSE_BUILD_INPUT
 
-
 #include "agnostic/bse_core_agnostic.h"
 
 namespace bse
@@ -19,14 +18,6 @@ namespace bse
 
   struct Platform
   {
-    struct FrameInfo
-    {
-      u64 currentFrameIndex;
-      float deltaTime;
-      //input::State input;
-      //float time;
-    } frame;
-
     struct CallbackInfo
     {
       debug_log_fn* debug_log;
@@ -41,30 +32,36 @@ namespace bse
       char const* executablePath;
     } constant;
 
-
     // net::NetworkData network;
-
     //This is to be user defined
    // AppUserData* userData;
+
+    struct FrameInfo
+    {
+      u64 frameIndex;
+      float deltaTime;
+      Input input;
+      //float time;
+    } thisFrame;
 
   } extern* platform;
 
   struct PlatformInitParams
   {
     char const* exePath;
+    void* programHandle;
     struct
     {
       s32 argumentCount;
       char** arguments;
     } commandLine;
 
-    struct
+    struct // INPUT
     {
-      bool skipInitMouseAndKeyboard;
       bool skipInitController;
     } input;
 
-    struct
+    struct // WINDOW
     {
       char const* name;
       int2 size;
@@ -73,23 +70,23 @@ namespace bse
       bool skipInitWindow;
     } window;
 
-    struct
+    struct // WORKER THREADS
     {
       s32 syncableCount;
       s32 asyncCount;
     } workerThreads;
 
-    struct
+    struct // AUDIO
     {
       bool skipInitAudio;
     } audio;
 
-    struct
+    struct // NETWORK
     {
       bool skipInitNetwork;
     } network;
 
-    struct
+    struct // CONSOLE
     {
       bool skipInitConsole;
     } console;
@@ -104,10 +101,6 @@ namespace bse
   using core_tick_fn = void( Platform* );
   extern "C" core_tick_fn core_tick_internal;
 };
-
-
-
-
 
 
 #if defined(BSE_APP_TO_BUILD)

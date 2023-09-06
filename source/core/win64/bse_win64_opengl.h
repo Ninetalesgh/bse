@@ -1,6 +1,5 @@
 #pragma once
-#include "bse_opengl_ext.h"
-//#include <gl/GL.h>
+#include "agnostic/bse_opengl_ext.h"
 #include "bse_win64.h"
 
 
@@ -15,6 +14,10 @@ namespace win64
 
     //called on the new thread
     void set_worker_thread_render_context( HGLRC renderContext );
+
+    void swap_buffers();
+
+    void resize_viewport( int2 dimensions );
   };
 };
 
@@ -245,7 +248,7 @@ namespace win64
         wglSwapIntervalEXT( 1 );
       }
 
-      glViewport( 0, 0, viewportDimensions.x, viewportDimensions.y );
+      resize_viewport( viewportDimensions );
 
       // glEnable( GL_CULL_FACE );
       // glCullFace( GL_BACK );
@@ -278,6 +281,16 @@ namespace win64
       }
     }
 
+    void swap_buffers()
+    {
+      SwapBuffers( oglglobal::deviceContext );
+      glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+    }
+
+    void resize_viewport( int2 dimensions )
+    {
+      glViewport( 0, 0, dimensions.x, dimensions.y );
+    }
   };
 };
 
