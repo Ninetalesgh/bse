@@ -1696,9 +1696,9 @@ void check_gl_error()
 
 namespace opengl_ext
 {
-  #define BSE_INIT_GL(fn) ::fn = (opengl_ext::fn*) get_proc_address_function(#fn); if (::fn == nullptr) { result = 0; BREAK; }
   GLint init( get_proc_address_fn* get_proc_address_function )
   {
+    #define BSE_INIT_GL(fn) ::fn = (opengl_ext::fn*) get_proc_address_function(#fn); if (::fn == nullptr) { result = 0; BREAK; }
     GLint result = 1;
 
     BSE_INIT_GL( glAccum );

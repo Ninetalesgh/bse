@@ -24,7 +24,7 @@ IF %build_mode%=="release" goto build_release
   del *.pdb > NUL 2> NUL
 
   
-  set compiler_options_dev=%compiler_options% /Z7 /Od /DBSE_BUILD_DEBUG
+  set compiler_options_dev=%compiler_options% /Z7 /Od /DBSE_BUILD_DEBUG /DBSE_APP_TO_BUILD_PATH=test.h
 
   cl /LD %codepath%\bse_core.cpp %compiler_options_dev% /Fe:bse_core.dll /Fmbse_core.map %linker_options% %app_exports% /PDB:bse_core_temp_%random%.pdb 
   cl     %codepath%\bse_main.cpp /Fe:bse_debug.exe %compiler_options_dev% %linker_options% 

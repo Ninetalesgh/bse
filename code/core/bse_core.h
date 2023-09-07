@@ -165,10 +165,3 @@ namespace bse
 };
 
 #include "bse_core_unity_build.cpp"
-
-
-#if defined(BSE_APP_TO_BUILD)
-//include apps here?
-#else
-//include devenv here?
-#endif

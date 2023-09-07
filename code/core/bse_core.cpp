@@ -30,3 +30,14 @@ namespace bse
 
   Platform* platform;
 };
+
+#if defined(BSE_APP_TO_BUILD_PATH)
+//include apps here?
+
+#define myXSTR(x) #x
+#define mySTR(x) (x)
+
+#include mySTR(BSE_APP_TO_BUILD_PATH)
+#else
+//include devenv here?
+#endif

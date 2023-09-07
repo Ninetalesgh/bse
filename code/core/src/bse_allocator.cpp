@@ -6,16 +6,9 @@ namespace bse
 {
   namespace memory
   {
-    void* allocate( s64 size )
-    {
-      return allocate( platform->default.allocator, size );
-    }
-    void free( void* ptr, s64 size )
-    {
-      free( platform->default.allocator, ptr );
-    }
+    void* allocate( s64 size ) { return allocate( platform->default.allocator, size ); }
+    void free( void* ptr, s64 size ) { free( platform->default.allocator, ptr ); }
   };
-
 
   struct ThreadSafeLinearAllocator
   {
