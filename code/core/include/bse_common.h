@@ -1,18 +1,21 @@
 #pragma once
 
-# ifdef _WIN32
+# if defined(_WIN32)
 #   define INLINE __forceinline
 # else
 #   define INLINE inline
 # endif
 
-#ifdef assert
+#if defined(assert)
 # undef assert
 #endif
 
-#ifdef BSE_BUILD_DEBUG
+#if defined(BSE_BUILD_DEBUG)
 # define BREAK __debugbreak()
 # define assert(expression) { if ( !(expression) ) BREAK; }
+#elif defined(BSE_BUILD_DEVELOP)
+# define BREAK {bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::LOCAL_CONSOLE}, "break in ", __FILE__," #", __LINE__ );}
+# define assert(expression) if (!(expression)) { bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::ALL}, "assert in ", __FILE__," #", __LINE__ );}
 #else
 # define BREAK {}
 # define assert(expression) {}

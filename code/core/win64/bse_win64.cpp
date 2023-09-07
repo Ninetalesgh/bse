@@ -8,17 +8,31 @@ void bse_win64_loop();
 
 int bse_main( int argc, char** argv )
 {
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init Callbacks so we are able to use debug logs and the like //////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  win64::register_platform_callbacks();
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init Timer  ///////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
   s32 result = 1;
   result = QueryPerformanceFrequency( (LARGE_INTEGER*) &win64::global::performanceCounterFrequency );
   assert( result );
+
+  result = (s32) timeBeginPeriod( 1 );
+  assert( result == TIMERR_NOERROR );
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Init Core and fetch app specifications for platform ///////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   bse_win64_init_core();
-  bse::PlatformInitParams initParams;
+  bse::PlatformInitParams initParams {};
   initParams.programHandle = GetModuleHandle( NULL );
+  initParams.platform = &win64::global::platform;
   initParams.commandLine.argumentCount = argc;
   initParams.commandLine.arguments = argv;
   win64::global::core.initialize( &initParams );
@@ -29,11 +43,6 @@ int bse_main( int argc, char** argv )
 
   if ( !initParams.console.skipInitConsole ) { CoInitializeEx( 0, COINIT_MULTITHREADED ); }
 
-  //////////////////////////////////////////////////////////////////////////////////////////////////////
-  ////////// Init Callbacks so we are able to use debug logs and the like //////////////////////////////
-  //////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  win64::register_platform_callbacks();
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Init Network //////////////////////////////////////////////////////////////////////////////
@@ -69,6 +78,8 @@ int bse_main( int argc, char** argv )
 
   if ( !initParams.window.skipInitWindow )
   {
+    win64::set_fps_cap( initParams.window.fpsCap );
+
     win64::global::mainWindowSize = initParams.window.size;
     win64::WindowInitParameter parameter {};
     parameter.windowName             = initParams.window.name;
@@ -113,16 +124,6 @@ int bse_main( int argc, char** argv )
 
   {
 
-  }
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////////
-  ////////// Init Time  ////////////////////////////////////////////////////////////////////////////////
-  //////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  {
-    result = (s32) timeBeginPeriod( 1 );
-    assert( result == TIMERR_NOERROR );
-    win64::set_fps_cap( initParams.window.fpsCap );
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -218,6 +219,8 @@ void bse_win64_loop()
       }
     } // PROFILE_SCOPE( debug_CyclesSleep );
   }
+
+  log_info( "hah" );
 
   //LARGE_INTEGER endCounter = win64::get_timer();
 }
@@ -366,22 +369,7 @@ LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wPa
   return result;
 }
 
-
-#if defined (BSE_RELEASE_BUILD)
-#include "bse_core.cpp"
-
-void bse_win64_init_core()
-{
-  win64::global::core.initialize = &bse::core_initialize_internal;
-  win64::global::core.on_reload = &bse::core_on_reload_internal;
-  win64::global::core.tick = &bse::core_tick_internal;
-
-  // char exePath[1024] = {};
-  // win64::get_exe_path( exePath, 1024 );
-  win64::global::core.initialize( initParams );
-}
-
-#else
+#if defined (BSE_DEVELOP_BUILD) || defined(BSE_DEBUG_BUILD)
 
 char const* BSE_TMP_CORE_FILENAME_0 = "bse_core0.tmp.dll";
 char const* BSE_TMP_CORE_FILENAME_1 = "bse_core1.tmp.dll";
@@ -426,5 +414,16 @@ namespace bse
 {
   Platform* platform = &win64::global::platform;
 };
+
+#else
+#include "bse_core.cpp"
+
+void bse_win64_init_core()
+{
+  win64::global::core.initialize = &bse::core_initialize_internal;
+  win64::global::core.on_reload = &bse::core_on_reload_internal;
+  win64::global::core.tick = &bse::core_tick_internal;
+}
+
 #endif
 

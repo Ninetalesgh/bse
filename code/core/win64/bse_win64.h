@@ -14,6 +14,9 @@
 
 
 #include "bse_core.h"
+
+#include "bse_precompiled_assets.generated.cpp"
+
 #include <stdio.h>
 
 #include <windows.h>
