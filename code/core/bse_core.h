@@ -164,10 +164,11 @@ namespace bse
   extern "C" core_tick_fn core_tick_internal;
 };
 
+#include "bse_core_unity_build.cpp"
+
+
 #if defined(BSE_APP_TO_BUILD)
 //include apps here?
 #else
 //include devenv here?
 #endif
-
-#include "bse_core_unity_build.cpp"

@@ -5,13 +5,13 @@
 #if defined (BSE_BUILD_MEMORY_ALLOCATE_OVERRIDE)
 # define BSE_ARRAY_MEMORY_ALLOCATE BSE_BUILD_MEMORY_ALLOCATE_OVERRIDE
 #else
-# define BSE_ARRAY_MEMORY_ALLOCATE(size) nullptr
+# define BSE_ARRAY_MEMORY_ALLOCATE(size) memory::allocate(size)
 #endif
 
 #if defined (BSE_BUILD_MEMORY_FREE_OVERRIDE)
 # define BSE_ARRAY_MEMORY_FREE BSE_BUILD_MEMORY_FREE_OVERRIDE
 #else
-# define BSE_ARRAY_MEMORY_FREE(ptr, size)
+# define BSE_ARRAY_MEMORY_FREE(ptr, size) memory::free(ptr, size)
 #endif
 
 namespace bse

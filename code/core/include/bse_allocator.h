@@ -6,6 +6,10 @@ namespace bse
 {
   namespace memory
   {
+    [[nodiscard]]
+    void* allocate( s64 size );
+    void free( void* ptr, s64 size );
+
     using allocate_fn = void* (s64 size);
     using free_fn = void( void*, s64 size );
 

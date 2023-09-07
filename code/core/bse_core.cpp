@@ -25,15 +25,6 @@ namespace bse
 
   void core_tick_internal( Platform* pf )
   {
-    int bla[4] = { 1,2,3,4 };
-    array<int> test { bla, array_count( bla ) };
-
-    test.pop();
-    test.push( 1 );
-    for ( auto& u : test )
-    {
-      u = 2;
-    }
     //TODO here ccomes the app tick
   }
 
