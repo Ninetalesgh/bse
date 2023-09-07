@@ -4,6 +4,24 @@
 #include "bse_thread.h"
 namespace bse
 {
+  namespace memory
+  {
+    using allocate_fn = void* (s64 size);
+    using free_fn = void( void*, s64 size );
+
+    struct Allocator
+    {
+      allocate_fn* allocate;
+      free_fn* free;
+    };
+  };
+
+
+
+
+
+
+
   struct ThreadSafeLinearAllocator;
 
   [[nodiscard]]
@@ -24,5 +42,4 @@ namespace bse
   [[nodiscard]]
   void* allocate_to_zero( ThreadSafeLinearAllocator* allocator, s64 size );
   void free( ThreadSafeLinearAllocator* allocator, void* address );
-
 };

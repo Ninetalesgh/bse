@@ -3,7 +3,6 @@
 
 namespace bse
 {
-
   void core_initialize_internal( PlatformInitParams* platformParameters )
   {
     platformParameters->window.name = "bse";
@@ -19,12 +18,22 @@ namespace bse
   void core_on_reload_internal( Platform* pf )
   {
     platform = pf;
+    opengl_ext::init( platform->opengl_get_process_address );
 
     //TODO here ccomes the app reload
   }
 
   void core_tick_internal( Platform* pf )
   {
+    int bla[4] = { 1,2,3,4 };
+    array<int> test { bla, array_count( bla ) };
+
+    test.pop();
+    test.push( 1 );
+    for ( auto& u : test )
+    {
+      u = 2;
+    }
     //TODO here ccomes the app tick
   }
 

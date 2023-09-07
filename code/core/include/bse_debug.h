@@ -6,6 +6,23 @@
 #define log_warning( ... ) bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::LOCAL_CONSOLE}, __VA_ARGS__)
 #define log_error( ... ) bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::LOCAL_AND_REMOTE}, __VA_ARGS__, " ", __FILE__, " #" __LINE__ )
 
+#if defined(assert)
+# undef assert
+#endif
+
+#if defined(BSE_BUILD_DEBUG)
+# define BREAK __debugbreak()
+# define assert(expression) { if ( !(expression) ) BREAK; }
+#elif defined(BSE_BUILD_DEVELOP)
+# define BREAK {bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::LOCAL_CONSOLE}, "break in ", __FILE__," #", __LINE__ );}
+# define assert(expression) if (!(expression)) { bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::ALL}, "assert in ", __FILE__," #", __LINE__ );}
+#else
+//# define BREAK {}
+//# define assert(expression) {}
+# define BREAK {bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::LOCAL_CONSOLE}, "break in ", __FILE__," #", __LINE__ );}
+# define assert(expression) if (!(expression)) { bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::ALL}, "assert in ", __FILE__," #", __LINE__ );}
+#endif
+
 namespace bse
 {
   namespace debug

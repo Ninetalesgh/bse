@@ -50,18 +50,23 @@ namespace win64
 {
   void register_platform_callbacks()
   {
+    ////////// Debug /////////////////////////////////////////////////////////////////////////////////////
     global::platform.debug_log = &debug_log;
 
+    ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
+    global::platform.allocate_memory = &allocate_memory;
+    global::platform.free_memory = &free_memory;
+
+    ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
     global::platform.get_file_info = &get_file_info;
     global::platform.load_file_part = &load_file_part;
     global::platform.write_file = &write_file;
     global::platform.create_directory = &create_directory;
-
     global::platform.get_precompiled_asset = &get_precompiled_asset;
 
-    global::platform.allocate_memory = &allocate_memory;
-    global::platform.free_memory = &free_memory;
+    ////////// System ////////////////////////////////////////////////////////////////////////////////////
     global::platform.shutdown = &shutdown;
+    global::platform.opengl_get_process_address = &opengl_ext::get_proc_address;
 
   }
 

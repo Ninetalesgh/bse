@@ -4,7 +4,7 @@ set build_mode="%1"
 IF NOT EXIST ..\build mkdir ..\build
 pushd ..\build
 
-
+set codepath=..\..\code\core
 set compiler_options=/I %codepath% /GR- /EHa- /FC /MT /nologo /volatile:iso /W4 /wd4068 /wd4100 /wd4201 /wd4701 /wd4189
 set linker_options=/link /opt:ref /incremental:no
 
@@ -23,7 +23,7 @@ IF %build_mode%=="release" goto build_release
   pushd debug
   del *.pdb > NUL 2> NUL
 
-  set codepath=..\..\code\core
+  
   set compiler_options_dev=%compiler_options% /Z7 /Od /DBSE_BUILD_DEBUG
 
   cl /LD %codepath%\bse_core.cpp %compiler_options_dev% /Fe:bse_core.dll /Fmbse_core.map %linker_options% %app_exports% /PDB:bse_core_temp_%random%.pdb 
@@ -40,7 +40,6 @@ IF %build_mode%=="release" goto build_release
   pushd development
   del *.pdb > NUL 2> NUL
 
-  set codepath=..\..\code\core
   set compiler_options_dev=%compiler_options% /Z7 /Od /DBSE_BUILD_DEVELOP
 
   cl /LD %codepath%\bse_core.cpp %compiler_options_dev% /Fe:bse_core.dll /Fmbse_core.map %linker_options% %app_exports% /PDB:bse_core_temp_%random%.pdb 
@@ -56,7 +55,6 @@ IF %build_mode%=="release" goto build_release
   IF NOT EXIST release mkdir release
   pushd release
 
-  set codepath=..\..\code\core
   set compiler_options_release=%compiler_options% /Ox
   
   cl %codepath%\bse_main.cpp /Fe:bse.exe %compiler_options_release% %linker_options% 

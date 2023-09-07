@@ -24,7 +24,6 @@ using GLvoid = void;
 namespace opengl_ext
 {
   using get_proc_address_fn = void* BSE_OGLAPI( char const* functionName );
-
   GLint init( get_proc_address_fn* get_proc_address_function );
 };
 

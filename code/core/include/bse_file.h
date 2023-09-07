@@ -17,6 +17,5 @@ namespace bse
       APPEND_OR_FAIL = 0x1,
       OVERWRITE_OR_FAIL = 0x2,
     };
-
   };
 };

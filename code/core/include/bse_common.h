@@ -1,25 +1,12 @@
 #pragma once
 
+#include <memory>
+
 # if defined(_WIN32)
 #   define INLINE __forceinline
 # else
 #   define INLINE inline
 # endif
-
-#if defined(assert)
-# undef assert
-#endif
-
-#if defined(BSE_BUILD_DEBUG)
-# define BREAK __debugbreak()
-# define assert(expression) { if ( !(expression) ) BREAK; }
-#elif defined(BSE_BUILD_DEVELOP)
-# define BREAK {bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::LOCAL_CONSOLE}, "break in ", __FILE__," #", __LINE__ );}
-# define assert(expression) if (!(expression)) { bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::ALL}, "assert in ", __FILE__," #", __LINE__ );}
-#else
-# define BREAK {}
-# define assert(expression) {}
-#endif
 
 #define array_count(array) (sizeof(array) / (sizeof((array)[0])))
 
@@ -45,7 +32,7 @@ using u8  = unsigned char;
 using u16 = unsigned short;
 using u32 = unsigned int;
 using u64 = unsigned long long;
-using voidfn = void();
+using void_fn = void();
 
 struct int2;
 struct float2;
@@ -138,6 +125,65 @@ struct int2
   INLINE int2 const& operator-=( int2 const& other ) { return *this = *this - other; }
   INLINE int2 const& operator*=( s32 other ) { return *this = *this * other; }
 };
+struct int3
+{
+  int3() {}
+  int3( s32 xyz ) : x( xyz ), y( xyz ), z( xyz ) {}
+  int3( s32 x, s32 y, s32 z ) : x( x ), y( y ), z( z ) {}
+  union
+  {
+    s32 elements[3];
+    struct { s32 x; s32 y; s32 z; };
+    int2 xy;
+  };
+
+  INLINE s32& operator[]( int i ) { return elements[i]; }
+  INLINE s32  operator[]( int i ) const { return elements[i]; }
+  INLINE int3	 operator-() { return int3 { -x, -y, -z }; }
+
+  INLINE int3 friend operator +( int3 const& a, int3 const& b ) { return { a.x + b.x, a.y + b.y, a.z + b.z }; }
+  INLINE int3 friend operator -( int3 const& a, int3 const& b ) { return { a.x - b.x, a.y - b.y, a.z - b.z }; }
+  INLINE int3 friend operator *( s32 f, int3 const& v ) { return { f * v.x, f * v.y, f * v.z }; }
+  INLINE int3 friend operator *( int3 const& v, s32 f ) { return { f * v.x, f * v.y, f * v.z }; }
+  INLINE int3 friend operator /( int3 const& v, s32 f ) { return { v.x / f, v.y / f, v.z / f }; }
+
+  INLINE int3 const& operator+=( int3 const& other ) { return *this = *this + other; }
+  INLINE int3 const& operator-=( int3 const& other ) { return *this = *this - other; }
+  INLINE int3 const& operator*=( s32 other ) { return *this = *this * other; }
+};
+
+struct int4
+{
+  int4() {}
+  int4( s32 x, s32 y, s32 z, s32 w ) : x( x ), y( y ), z( z ), w( w ) {}
+  int4( int3 const& v3, s32 w ) : x( v3.x ), y( v3.y ), z( v3.z ), w( w ) {}
+  int4( s32 xyzw ) : x( xyzw ), y( xyzw ), z( xyzw ), w( xyzw ) {}
+  union
+  {
+    s32 elements[4];
+    struct {
+      s32 x;
+      union { struct { s32 y; s32 z; s32 w; }; int3 yzw; };
+    };
+    int3 xyz;
+  };
+
+  INLINE s32& operator[]( int i ) { return elements[i]; }
+  INLINE s32  operator[]( int i ) const { return elements[i]; }
+
+  INLINE int4 friend operator +( int4 const& a, int3 const& b ) { return { a.x + b.x, a.y + b.y, a.z + b.z, a.w }; }
+  INLINE int4 friend operator +( int4 const& a, int4 const& b ) { return { a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w }; }
+  INLINE int4 friend operator -( int4 const& a, int4 const& b ) { return { a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w }; }
+  INLINE int4 friend operator *( s32 f, int4 const& v ) { return { f * v.x, f * v.y, f * v.z, f * v.w }; }
+  INLINE int4 friend operator *( int4 const& v, s32 f ) { return { f * v.x, f * v.y, f * v.z, f * v.w }; }
+  INLINE int4 friend operator /( int4 const& v, s32 f ) { return { v.x / f, v.y / f, v.z / f, v.w / f }; }
+
+  INLINE int4 const& operator+=( int3 const& other ) { return *this = *this + other; }
+  INLINE int4 const& operator+=( int4 const& other ) { return *this = *this + other; }
+  INLINE int4 const& operator-=( int4 const& other ) { return *this = *this - other; }
+  INLINE int4 const& operator*=( s32 other ) { return *this = *this * other; }
+};
+
 struct float2
 {
   float2() {}
