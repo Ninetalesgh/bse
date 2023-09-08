@@ -3554,7 +3554,7 @@ typedef int stbrp_coord;
 //                                                                                //
 //                                                                                //
 // if you get a compile warning due to these symbols being defined more than      //
-// once, move #include "stb_rect_pack.h" before #include "stb_truetype.h"         //
+// once, move #include "core/stb_rect_pack.h" before #include "core/stb_truetype.h"         //
 //                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////
 

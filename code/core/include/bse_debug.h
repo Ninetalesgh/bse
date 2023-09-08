@@ -46,7 +46,7 @@ namespace bse
       REMOTE_AND_FILE   = REMOTE_HOST | WRITE_TO_LOG_FILE,
       ALL               = 0xff
     };
-    DEFINE_ENUM_OPERATORS_U8( LogOutputType );
+    BSE_DEFINE_ENUM_OPERATORS_U8( LogOutputType );
 
     struct LogParameters
     {

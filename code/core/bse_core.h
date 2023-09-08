@@ -1,21 +1,28 @@
 #pragma once
 
-#define BSE_BUILD_NETWORK
-#define BSE_BUILD_GRAPHICS
-#define BSE_BUILD_AUDIO
-#define BSE_BUILD_INPUT
+//#define BSE_BUILD_SKIP_NETWORK
+//#define BSE_BUILD_SKIP_GRAPHICS
+//#define BSE_BUILD_SKIP_AUDIO
+//#define BSE_BUILD_SKIP_INPUT
 
-#include "include/bse_filesystem.h"
-#include "include/bse_debug.h"
-#include "include/bse_thread.h"
-#include "include/bse_string_format.h"
-#include "include/bse_color.h"
-#include "include/bse_image.h"
-#include "include/bse_input.h"
-#include "include/bse_common.h"
-#include "include/bse_array.h"
-#include "include/bse_opengl_ext.h"
-#include "include/bse_unsorted_definitions.h"
+#include "core/include/bse_filesystem.h"
+#include "core/include/bse_debug.h"
+#include "core/include/bse_thread.h"
+#include "core/include/bse_string_format.h"
+#include "core/include/bse_color.h"
+#include "core/include/bse_common.h"
+#include "core/include/bse_array.h"
+
+#if !defined(BSE_BUILD_SKIP_INPUT)
+# include "core/include/bse_input.h"
+#endif
+
+#if !defined(BSE_BUILD_SKIP_GRAPHICS)
+# include "core/include/bse_image.h"
+# include "core/include/bse_opengl_ext.h"
+#endif
+
+#include "core/include/bse_unsorted_definitions.h"
 
 namespace bse
 {
@@ -85,10 +92,7 @@ namespace bse
     //This is to be user defined
    // AppUserData* userData;
 
-    struct ConstantInfo
-    {
-      char const* executablePath;
-    } constant;
+    char const* executablePath;
 
     struct
     {
@@ -99,9 +103,16 @@ namespace bse
     {
       u64 frameIndex;
       float deltaTime;
+      #if !defined(BSE_BUILD_SKIP_INPUT)
       Input input;
-      //float time;
+      #endif
     } thisFrame;
+
+    struct
+    {
+      float timeMultiplier = 1.0f;
+      float fpsCap = 30.0f;
+    } settings;
 
   } extern* platform;
 
@@ -110,6 +121,7 @@ namespace bse
     char const* exePath;
     void* programHandle;
     Platform* platform;
+    bool shutdownAfterInitializing;
 
     struct
     {
@@ -129,7 +141,6 @@ namespace bse
       int2 position;
       bool fullscreen;
       bool skipInitWindow;
-      float fpsCap;
     } window;
 
     struct // WORKER THREADS
@@ -154,7 +165,7 @@ namespace bse
     } console;
   };
 
-  using core_initialize_fn = void( PlatformInitParams* );
+  using core_initialize_fn = void( PlatformInitParams*, Platform* );
   extern "C" core_initialize_fn core_initialize_internal;
 
   using core_on_reload_fn = void( Platform* );
@@ -164,4 +175,4 @@ namespace bse
   extern "C" core_tick_fn core_tick_internal;
 };
 
-#include "bse_core_unity_build.cpp"
+#include "core/bse_core_unity_build.cpp"

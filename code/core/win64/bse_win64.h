@@ -13,9 +13,9 @@
 #pragma comment(lib,"Gdi32.lib")
 
 
-#include "bse_core.h"
+#include "core/bse_core.h"
 
-#include "bse_precompiled_assets.generated.cpp"
+#include "core/bse_precompiled_assets.generated.cpp"
 
 #include <stdio.h>
 
@@ -31,6 +31,8 @@
 # undef max
 #endif
 #include <Xinput.h>
+
+#include "bse_win64_opengl.h"
 
 constexpr s32 MAX_BSE_PATH = 1024;
 namespace win64
@@ -62,7 +64,7 @@ namespace win64
 
   namespace stub
   {
-    void core_initialize( bse::PlatformInitParams* ) {}
+    void core_initialize( bse::PlatformInitParams*, bse::Platform* ) {}
     void core_on_reload( bse::Platform* ) {}
     void core_tick( bse::Platform* ) {}
 
@@ -78,21 +80,26 @@ namespace win64
     bse::core_tick_fn* tick = stub::core_tick;
   };
 
+  struct WindowContext
+  {
+    HWND handle;
+    HDC deviceContext;
+    HGLRC renderContext;
+    int2 size;
+  };
+
   namespace global
   {
+    static bse::Platform      platform;
     static xInputGetState_fn* xInputGetState;
     static xInputSetState_fn* xInputSetState;
     static s64                performanceCounterFrequency;
-    static BseCore            core;
-    static bse::Platform      platform;
+    static BseCore            bseCore;
     static HMODULE            openglDll;
-    static HWND               mainWindow;
-    static int2               mainWindowSize;
-    static float              spfCap; // if there is no cap on fps, this should be 0
+    static opengl::Context    openglContext;
+    static WindowContext      mainWindow;
     static bool               running;
   };
-
-  void set_fps_cap( float fps ) { global::spfCap = fps ? 1.0f / fps : 0.0f; }
 
   INLINE LARGE_INTEGER get_timer()
   {
@@ -106,40 +113,92 @@ namespace win64
     return float( endCounter.QuadPart - beginCounter.QuadPart ) / float( global::performanceCounterFrequency );
   }
 
+  void* opengl_get_proc_address( char const* functionName )
+  {
+    void* p = (void*) wglGetProcAddress( functionName );
+    if ( p == 0 ||
+      (p == (void*) 0x1) || (p == (void*) 0x2) || (p == (void*) 0x3) ||
+      (p == (void*) -1) )
+    {
+      p = (void*) GetProcAddress( win64::global::openglDll, functionName );
+    }
+
+    return p;
+  }
+
   struct WindowInitParameter
   {
     char const* windowName;
     WNDCLASSEX wndClass;
-    s32 x;
-    s32 y;
-    s32 width;
-    s32 height;
+    int2 pos;
+    int2 size;
   };
-  HWND init_window( WindowInitParameter const& parameter )
+  WindowContext create_window( WindowInitParameter const& parameter )
   {
-    HWND resultWindow = 0;
+    WindowContext resultWindow {};
     wchar_t nameBuffer[MAX_BSE_PATH] = {};
     utf8_to_wchar( parameter.windowName, nameBuffer, MAX_BSE_PATH );
     WNDCLASSEX const& wndClass = parameter.wndClass;
 
     if ( RegisterClassEx( &wndClass ) )
     {
-      resultWindow = CreateWindowEx( WS_EX_ACCEPTFILES,                // DWORD dwExStyle,                                  
+      resultWindow.handle = CreateWindowEx( WS_EX_ACCEPTFILES,                // DWORD dwExStyle,                                  
                                      wndClass.lpszClassName, // LPCWSTR lpClassName,                                  
                                      nameBuffer,                       // LPCWSTR lpWindowName,                     
                                      WS_OVERLAPPEDWINDOW | WS_VISIBLE, // DWORD dwStyle,                                 
-                                     parameter.x,                      // int X,               
-                                     parameter.y,                      // int Y,              
-                                     parameter.width,                  // int nWidth,               
-                                     parameter.height,                 // int nHeight,              
+                                     parameter.pos.x,                      // int X,               
+                                     parameter.pos.y,                      // int Y,              
+                                     parameter.size.x,                  // int nWidth,               
+                                     parameter.size.y,                 // int nHeight,              
                                      /*parent window*/ 0,              // HWND hWndParent,                    
                                      /*menu*/ 0,                       // HMENU hMenu,           
                                      wndClass.hInstance,     // HINSTANCE hInstance,                             
                                      0 );                              // LPVOID lpParam 
     }
+
+    if ( resultWindow.handle )
+    {
+      resultWindow.deviceContext = GetDC( resultWindow.handle );
+      assert( resultWindow.deviceContext );
+      if ( !opengl::set_pixel_format_for_dc( resultWindow.deviceContext ) )
+      {
+        BREAK;
+        return resultWindow;
+      }
+
+      resultWindow.renderContext = opengl::create_render_context( resultWindow.deviceContext, 0 );
+      if ( !resultWindow.renderContext )
+      {
+        BREAK;
+        return resultWindow;
+      }
+
+      if ( !opengl::assign_render_context_to_current_thread( resultWindow.deviceContext, resultWindow.renderContext ) )
+      {
+        BREAK;
+        return resultWindow;
+      }
+
+      if ( !glClear )
+      {
+        if ( !opengl::init_extensions( &opengl_get_proc_address ) )
+        {
+          BREAK;
+        }
+      }
+
+      if ( !opengl::init_framebuffer() )
+      {
+        BREAK;
+      }
+
+      opengl::resize_viewport( parameter.size );
+    }
+
     return resultWindow;
   }
 
+  #if !defined(BSE_BUILD_SKIP_INPUT)
   void load_xInput()
   {
     HMODULE module = LoadLibraryA( "xinput1_4.dll" );
@@ -217,16 +276,5 @@ namespace win64
     //   global::xInputSetState( 0, &vibrationState );
     // }
   }
-
-
-
+  #endif
 };
-
-
-////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////
-////////////// callbacks ///////////////////////////////////////////
-////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////
-
-

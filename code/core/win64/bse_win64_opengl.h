@@ -1,12 +1,19 @@
 #pragma once
-#include "include/bse_opengl_ext.h"
-#include "bse_win64.h"
+#include "core/include/bse_opengl_ext.h"
+#include "core/include/bse_color.h"
 
 namespace win64
 {
   namespace opengl
   {
-    u32 init( HDC deviceContext, int2 viewportDimensions );
+    s32 load_extensions();
+    s32 init_extensions();
+    // u32 init( HDC deviceContext, int2 viewportDimensions );
+
+    HGLRC create_render_context( HDC deviceContext, HGLRC shareContext );
+
+    s32 init_device_context( HDC deviceContext );
+    s32 assign_render_context_to_current_thread( HDC deviceContext, HGLRC shareContext );
 
     //called on the main thread the context was established on
     HGLRC create_render_context_for_worker_thread();
@@ -14,7 +21,7 @@ namespace win64
     //called on the new thread
     void set_worker_thread_render_context( HGLRC renderContext );
 
-    void swap_buffers();
+    void swap_buffers( HDC deviceContext );
 
     void resize_viewport( int2 dimensions );
   };
@@ -27,19 +34,6 @@ namespace opengl_ext
   using wglGetPixelFormatAttribivARB = BOOL WINAPI( HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int* piAttributes, int* piValues );
   using wglGetPixelFormatAttribfvARB = BOOL WINAPI( HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int* piAttributes, FLOAT* pfValues );
   using wglSwapIntervalEXT = BOOL WINAPI( int );
-
-  void* get_proc_address( char const* functionName )
-  {
-    void* p = (void*) wglGetProcAddress( functionName );
-    if ( p == 0 ||
-      (p == (void*) 0x1) || (p == (void*) 0x2) || (p == (void*) 0x3) ||
-      (p == (void*) -1) )
-    {
-      p = (void*) GetProcAddress( win64::global::openglDll, functionName );
-    }
-
-    return p;
-  }
 };
 
 static opengl_ext::wglChoosePixelFormatARB* wglChoosePixelFormatARB;
@@ -54,7 +48,7 @@ namespace win64
   {
     struct OpenGlInfo
     {
-      u32 extEnabled;
+      bool extEnabled;
       char const* vendor;
       char const* renderer;
       char const* version;
@@ -62,6 +56,12 @@ namespace win64
       char const* extensions;
       u32 GL_EXT_texture_sRGB;
       u32 GL_EXT_framebuffer_sRGB;
+    };
+
+    struct Context
+    {
+      HGLRC renderContext;
+      HDC   deviceContext;
     };
 
     namespace oglglobal
@@ -76,8 +76,6 @@ namespace win64
         WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
         0
       };
-      static HGLRC renderContext;
-      static HDC   deviceContext;
     };
 
     void init_opengl_info()
@@ -91,7 +89,7 @@ namespace win64
       oglglobal::info.GL_EXT_framebuffer_sRGB = bse::string_contains( oglglobal::info.extensions, "GL_EXT_framebuffer_sRGB" ) != nullptr;
     };
 
-    u32 set_pixel_format_for_dc( HDC deviceContext )
+    s32 set_pixel_format_for_dc( HDC deviceContext )
     {
       s32 suggestedPixelFormatIndex = 0;
 
@@ -135,13 +133,13 @@ namespace win64
       PIXELFORMATDESCRIPTOR suggestedPixelFormat {};
       DescribePixelFormat( deviceContext, suggestedPixelFormatIndex, sizeof( suggestedPixelFormat ), &suggestedPixelFormat );
 
-      u32 result = SetPixelFormat( deviceContext, suggestedPixelFormatIndex, &suggestedPixelFormat );
+      s32 result = SetPixelFormat( deviceContext, suggestedPixelFormatIndex, &suggestedPixelFormat );
       return result;
     }
 
-    u32 load_extensions()
+    s32 load_extensions()
     {
-      u32 result = 0;
+      s32 result = 0;
       HWND dummyWindow = 0;
       WNDCLASSW wndClass {};
       wndClass.lpfnWndProc   = DefWindowProcW;
@@ -167,6 +165,7 @@ namespace win64
         if ( !wglMakeCurrent( dummyDC, dummyRC ) )
         {
           BREAK;
+          return 0;
         }
 
         ::wglChoosePixelFormatARB =    (opengl_ext::wglChoosePixelFormatARB*) wglGetProcAddress( "wglChoosePixelFormatARB" );
@@ -175,14 +174,13 @@ namespace win64
         ::wglGetPixelFormatAttribfvARB = (opengl_ext::wglGetPixelFormatAttribfvARB*) wglGetProcAddress( "wglGetPixelFormatAttribfvARB" );
         ::wglSwapIntervalEXT =         (opengl_ext::wglSwapIntervalEXT*) wglGetProcAddress( "wglSwapIntervalEXT" );
 
-        if ( ::wglChoosePixelFormatARB == nullptr ) BREAK;
-        if ( ::wglCreateContextAttribsARB == nullptr ) BREAK;
-        if ( ::wglGetPixelFormatAttribivARB == nullptr ) BREAK;
-        if ( ::wglGetPixelFormatAttribfvARB == nullptr ) BREAK;
-        if ( ::wglSwapIntervalEXT == nullptr ) BREAK;
+        if ( ::wglChoosePixelFormatARB == nullptr ) { BREAK; return 0; }
+        if ( ::wglCreateContextAttribsARB == nullptr ) { BREAK; return 0; }
+        if ( ::wglGetPixelFormatAttribivARB == nullptr ) { BREAK; return 0; }
+        if ( ::wglGetPixelFormatAttribfvARB == nullptr ) { BREAK; return 0; }
+        if ( ::wglSwapIntervalEXT == nullptr ) { BREAK; return 0; }
 
-        //DOES THIS HAVE TO BE HERE?
-        opengl_ext::init( &opengl_ext::get_proc_address );
+        oglglobal::info.extEnabled = wglCreateContextAttribsARB == nullptr ? false : true;
 
         wglMakeCurrent( 0, 0 );
         wglDeleteContext( dummyRC );
@@ -195,62 +193,29 @@ namespace win64
       return result;
     }
 
-    u32 init( HDC deviceContext, int2 viewportDimensions )
+    s32 init_extensions( opengl_ext::get_proc_address_fn* get_proc_address )
     {
-      if ( !load_extensions() )
-      {
-        BREAK;
-        return 0;
-      }
-
-      if ( !set_pixel_format_for_dc( deviceContext ) )
-      {
-        BREAK;
-        return 0;
-      }
-
-      oglglobal::deviceContext = deviceContext;
-      if ( wglCreateContextAttribsARB )
-      {
-        oglglobal::renderContext = wglCreateContextAttribsARB( oglglobal::deviceContext, 0, oglglobal::rcAttributes );
-        oglglobal::info.extEnabled = 1;
-      }
-
-      if ( !oglglobal::renderContext )
-      {
-        oglglobal::renderContext = wglCreateContext( oglglobal::deviceContext );
-        oglglobal::info.extEnabled = 0;
-        BREAK;
-      }
-
-      if ( !wglMakeCurrent( oglglobal::deviceContext, oglglobal::renderContext ) )
-      {
-        BREAK;
-        return 0;
-      }
-
+      opengl_ext::init( get_proc_address );
       glEnable( GL_DEBUG_OUTPUT );
+      //TODO debug message callback
       // glDebugMessageCallback( gl_debug_message_callback, nullptr );
       check_gl_error();
-
       init_opengl_info();
+      return 1;
+    }
 
+    s32 init_framebuffer()
+    {
       oglglobal::defaultTextureFormat = oglglobal::info.GL_EXT_texture_sRGB ? GL_RGBA8 : GL_SRGB8_ALPHA8;
-
       if ( oglglobal::info.GL_EXT_framebuffer_sRGB )
       {
         glEnable( GL_FRAMEBUFFER_SRGB );
       }
 
-      if ( wglSwapIntervalEXT ) //vsync
+      if ( wglSwapIntervalEXT ) //vsync probably TODO move this somewhere else
       {
         wglSwapIntervalEXT( 1 );
       }
-
-      resize_viewport( viewportDimensions );
-
-      // glEnable( GL_CULL_FACE );
-      // glCullFace( GL_BACK );
 
       glEnable( GL_DEPTH_TEST );
       glDepthFunc( GL_LESS );
@@ -264,25 +229,65 @@ namespace win64
       return 1;
     }
 
-    HGLRC create_render_context_for_worker_thread()
+    HGLRC create_render_context( HDC deviceContext, HGLRC shareContext )
+    {
+      HGLRC renderContext {};
+
+      if ( wglCreateContextAttribsARB )
+      {
+        renderContext = wglCreateContextAttribsARB( deviceContext, shareContext, oglglobal::rcAttributes );
+      }
+
+      if ( !renderContext )
+      {
+        renderContext = wglCreateContext( deviceContext );
+        BREAK;
+      }
+      return renderContext;
+    }
+
+    s32 assign_render_context_to_current_thread( HDC deviceContext, HGLRC renderContext )
+    {
+      if ( !wglMakeCurrent( deviceContext, renderContext ) )
+      {
+        BREAK;
+        return 0;
+      }
+
+      return 1;
+    }
+
+    s32 init_lazy_default( HDC deviceContext, int2 viewportDimensions )
+    {
+      resize_viewport( viewportDimensions );
+
+      // glEnable( GL_CULL_FACE );
+      // glCullFace( GL_BACK );
+
+
+
+      return 1;
+    }
+
+    HGLRC create_render_context_for_worker_thread( HDC deviceContext, HGLRC renderContext )
     {
       check_gl_error();
-      HGLRC rc = wglCreateContextAttribsARB( oglglobal::deviceContext, oglglobal::renderContext, oglglobal::rcAttributes );
+      HGLRC rc = wglCreateContextAttribsARB( deviceContext, renderContext, oglglobal::rcAttributes );
       check_gl_error();
       return rc;
     }
 
-    void set_worker_thread_render_context( HGLRC renderContext )
+    void set_worker_thread_render_context( HDC deviceContext, HGLRC renderContext )
     {
-      if ( !wglMakeCurrent( oglglobal::deviceContext, renderContext ) )
+      if ( !wglMakeCurrent( deviceContext, renderContext ) )
       {
         BREAK;
       }
     }
 
-    void swap_buffers()
+    void swap_buffers( HDC deviceContext )
     {
-      SwapBuffers( oglglobal::deviceContext );
+      SwapBuffers( deviceContext );
       glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
     }
 

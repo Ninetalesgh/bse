@@ -8,5 +8,5 @@ int main( int argc, char** argv )
 }
 
 #ifdef _WIN32
-#include "win64/bse_win64.cpp"
+#include "core/win64/bse_win64.cpp"
 #endif

@@ -1,5 +1,5 @@
-#include "include/bse_debug.h"
-#include "bse_core.h"
+#include "core/include/bse_debug.h"
+#include "core/bse_core.h"
 
 namespace bse
 {

@@ -66,7 +66,7 @@ namespace win64
 
     ////////// System ////////////////////////////////////////////////////////////////////////////////////
     global::platform.shutdown = &shutdown;
-    global::platform.opengl_get_process_address = &opengl_ext::get_proc_address;
+    global::platform.opengl_get_process_address = &opengl_get_proc_address;
 
   }
 

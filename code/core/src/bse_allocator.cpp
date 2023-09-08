@@ -1,4 +1,4 @@
-#include "include/bse_allocator.h"
+#include "core/include/bse_allocator.h"
 
 #include <memory>
 

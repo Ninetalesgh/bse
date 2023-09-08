@@ -1,8 +1,8 @@
 #include "bse_win64.h"
-#include "bse_win64_opengl.h"
 #include "bse_win64_platform_callbacks.h"
 
 LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wParam, LPARAM lParam );
+
 void bse_win64_init_core();
 void bse_win64_loop();
 
@@ -26,7 +26,7 @@ int bse_main( int argc, char** argv )
   assert( result == TIMERR_NOERROR );
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
-  ////////// Init Core and fetch app specifications for platform ///////////////////////////////////////
+  ////////// Init Core and fetch app specifications for platform, quit right after if desired //////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   bse_win64_init_core();
@@ -35,7 +35,8 @@ int bse_main( int argc, char** argv )
   initParams.platform = &win64::global::platform;
   initParams.commandLine.argumentCount = argc;
   initParams.commandLine.arguments = argv;
-  win64::global::core.initialize( &initParams );
+  win64::global::bseCore.initialize( &initParams, &win64::global::platform );
+  if ( initParams.shutdownAfterInitializing ) return 0;
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Init Console (Is this relevant?) //////////////////////////////////////////////////////////
@@ -43,12 +44,11 @@ int bse_main( int argc, char** argv )
 
   if ( !initParams.console.skipInitConsole ) { CoInitializeEx( 0, COINIT_MULTITHREADED ); }
 
-
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Init Network //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  #if defined(BSE_BUILD_NETWORK)
+  #if !defined(BSE_BUILD_SKIP_NETWORK)
   if ( !initParams.network.skipInitNetwork )
   {
     WSADATA wsaData;
@@ -61,7 +61,7 @@ int bse_main( int argc, char** argv )
   ////////// Init Input ////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  #if defined(BSE_BUILD_INPUT)
+  #if !defined(BSE_BUILD_SKIP_INPUT)
   if ( !initParams.input.skipInitController )
   {
     win64::load_xInput();
@@ -72,21 +72,18 @@ int bse_main( int argc, char** argv )
   ////////// Init Graphics /////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  #if defined (BSE_BUILD_GRAPHICS)
+  #if !defined(BSE_BUILD_SKIP_GRAPHICS)
   win64::global::openglDll = LoadLibraryA( "opengl32.dll" );
   assert( win64::global::openglDll );
+  result = win64::opengl::load_extensions();
+  assert( result );
 
   if ( !initParams.window.skipInitWindow )
   {
-    win64::set_fps_cap( initParams.window.fpsCap );
-
-    win64::global::mainWindowSize = initParams.window.size;
     win64::WindowInitParameter parameter {};
     parameter.windowName             = initParams.window.name;
-    parameter.width                  = initParams.window.size.x;
-    parameter.height                 = initParams.window.size.y;
-    parameter.x                      = initParams.window.position.x;
-    parameter.y                      = initParams.window.position.y;
+    parameter.size                   = initParams.window.size;
+    parameter.pos                    = initParams.window.position;
     parameter.wndClass.cbSize        = sizeof( WNDCLASSEX );
     parameter.wndClass.style         = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
     parameter.wndClass.lpfnWndProc   = bse_main_window_callback;
@@ -94,17 +91,9 @@ int bse_main( int argc, char** argv )
     parameter.wndClass.hCursor       = LoadCursor( (HINSTANCE) NULL, IDC_ARROW );
     parameter.wndClass.lpszClassName = L"bsewnd";
 
-    win64::global::openglDll = LoadLibraryA( "opengl32.dll" );
-    assert( win64::global::openglDll );
-
-    win64::global::mainWindow = win64::init_window( parameter );
-    assert( win64::global::mainWindow );
-
-    HDC deviceContext = GetDC( win64::global::mainWindow );
-    assert( deviceContext );
-
-    u32 openglInitResult = win64::opengl::init( deviceContext, initParams.window.size );
-    assert( openglInitResult );
+    win64::global::mainWindow = win64::create_window( parameter );
+    win64::global::mainWindow.size = initParams.window.size;
+    assert( win64::global::mainWindow.handle );
   }
   #endif
 
@@ -112,7 +101,7 @@ int bse_main( int argc, char** argv )
   ////////// Init Audio ////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  #if defined (BSE_BUILD_AUDIO)    
+  #if !defined(BSE_BUILD_SKIP_AUDIO)    
   if ( !initParams.audio.skipInitAudio )
   {
   }
@@ -127,19 +116,11 @@ int bse_main( int argc, char** argv )
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
-  ////////// Init App Callbacks ////////////////////////////////////////////////////////////////////////
-  //////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  {
-    win64::global::core.on_reload( &win64::global::platform );
-  }
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Init App //////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   {
-
+    win64::global::bseCore.on_reload( &win64::global::platform );
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -155,6 +136,7 @@ int bse_main( int argc, char** argv )
     bse_win64_loop();
 
     //3) Swap Buffers?
+    win64::opengl::swap_buffers( win64::global::mainWindow.deviceContext );
 
     //4) Increase Frame Index
     ++win64::global::platform.thisFrame.frameIndex;
@@ -163,81 +145,94 @@ int bse_main( int argc, char** argv )
   return result;
 }
 
-void bse_win64_process_window_messages();
-
+void bse_win64_process_window_messages( HWND );
 void bse_win64_loop()
 {
+  bse::Platform& platform = win64::global::platform;
   LARGE_INTEGER beginCounter = win64::get_timer();
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Process Input & Window Messages ///////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  bse_win64_process_window_messages();
+  bse_win64_process_window_messages( win64::global::mainWindow.handle );
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Process Core Tick /////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   {
-    win64::global::core.tick( &win64::global::platform );
+    static LARGE_INTEGER previousFrameTime = beginCounter;
+    platform.thisFrame.deltaTime = win64::get_seconds_elapsed( previousFrameTime, beginCounter );
+    #if defined(BSE_BUILD_DEBUG)
+    //so delta time doesn't get messed up with breakpoints
+    static float averageDeltaTime = platform.settings.fpsCap ? 1.0f / platform.settings.fpsCap : 0.0f;
+    if ( platform.thisFrame.deltaTime > 0.05f )
+    {
+      platform.thisFrame.deltaTime = averageDeltaTime;
+    }
+    constexpr float A = 0.9f;
+    averageDeltaTime = A * averageDeltaTime + (1.0f - A) * platform.thisFrame.deltaTime;
+    #endif
+    previousFrameTime = beginCounter;
+    win64::global::bseCore.tick( &platform );
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
-  ////////// Adjust to FPS /////////////////////////////////////////////////////////////////////////////
+  ////////// Adjust to FPS Target //////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   {
-    static float sleepMsSubtraction = 0.0f;
-
     float secondsElapsed = win64::get_seconds_elapsed( beginCounter, win64::get_timer() );
-
-    if ( win64::global::spfCap )
+    if ( platform.settings.fpsCap )
     {
+      static float sleepMsSubtraction = 0.0f;
+      float const spfTarget = 1.0f / platform.settings.fpsCap;
+
       //      PROFILE_SCOPE( debug_CyclesSleep );
-      if ( secondsElapsed < win64::global::spfCap )
+      if ( secondsElapsed < spfTarget )
       {
-        float const msSleep = ((win64::global::spfCap - secondsElapsed) * 1000.f) + sleepMsSubtraction;
+        float const msSleep = ((spfTarget - secondsElapsed) * 1000.f) + sleepMsSubtraction;
         // thread::sleep( s32( max( msSleep, 0.0f ) ) );
         float secondsElapsedIncludingSleep =  win64::get_seconds_elapsed( beginCounter, win64::get_timer() );
-        float const delta = 1000.0f * (win64::global::spfCap - secondsElapsedIncludingSleep);
+        float const delta = 1000.0f * (spfTarget - secondsElapsedIncludingSleep);
         sleepMsSubtraction += min( 0.f, delta ) - (delta > 2.0f) * 1.0f;
 
 
-        //   log_info( "[WIN32_CLOCK] frame ", win64::global::coreData.currentFrameIndex, " had ", delta, " ms left after sleeping for ", max( msSleep, 0.f ),
+        //   log_info( "[WIN32_CLOCK] frame ", win64::global::bseCoreData.currentFrameIndex, " had ", delta, " ms left after sleeping for ", max( msSleep, 0.f ),
         //                                        " ms\n - - - next sleep reduced by ", -sleepMsSubtraction, " ms\n" );
         do
         {
           secondsElapsedIncludingSleep = win64::get_seconds_elapsed( beginCounter, win64::get_timer() );
-        } while ( secondsElapsedIncludingSleep < win64::global::spfCap );
+        } while ( secondsElapsedIncludingSleep < spfTarget );
       }
       else
       {
-        //  log_info( "[WIN32_CLOCK] Missed fps target for frame: ", win64::global::coreData.currentFrameIndex,
+        //  log_info( "[WIN32_CLOCK] Missed fps target for frame: ", win64::global::bseCoreData.currentFrameIndex,
         //                                        "\n- - - - - - - Actual ms: ", 1000.f * secondsElapsed,
         //                                       "   fps: ", float( 1.f / secondsElapsed ), "\n" );
       }
     } // PROFILE_SCOPE( debug_CyclesSleep );
   }
 
-  log_info( "hah" );
-
   //LARGE_INTEGER endCounter = win64::get_timer();
 }
 
-void bse_win64_process_window_messages()
+void bse_win64_process_window_messages( HWND windowHandle )
 {
+  #if !defined(BSE_BUILD_SKIP_INPUT)
   bse::Input& input = win64::global::platform.thisFrame.input;
   memset( input.down, 0, bse::Input::STATE_COUNT );
+  input.mousePos[0].start = input.mousePos[0].end;
+  #endif
   MSG message;
-  while ( PeekMessage( &message, 0, 0, 0, PM_REMOVE ) )
+  while ( PeekMessage( &message, windowHandle, 0, 0, PM_REMOVE ) )
   {
-    input.mousePos[0].start = input.mousePos[0].end;
-
     switch ( message.message )
     {
       case WM_XBUTTONDOWN:
       case WM_XBUTTONUP:
+        #if !defined(BSE_BUILD_SKIP_INPUT)
       {
         assert( message.wParam == 65568 || message.wParam == 131136 );
         u32 code = message.wParam == 65568 ? bse::Input::MOUSE_4 : bse::Input::MOUSE_5;
@@ -307,6 +302,7 @@ void bse_win64_process_window_messages()
 
         break;
       }
+      #endif
       default:
       {
         TranslateMessage( &message );
@@ -315,11 +311,11 @@ void bse_win64_process_window_messages()
       break;
     }
 
+    #if !defined(BSE_BUILD_SKIP_INPUT)
     win64::process_controller_input( win64::global::platform.thisFrame.input );
+    #endif
   }
 }
-
-
 
 LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wParam, LPARAM lParam )
 {
@@ -328,10 +324,10 @@ LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wPa
   {
     case WM_SIZE:
     {
-      win64::global::mainWindowSize = int2 { s32( LOWORD( lParam ) ), s32( HIWORD( lParam ) ) };
+      win64::global::mainWindow.size = int2 { s32( LOWORD( lParam ) ), s32( HIWORD( lParam ) ) };
       if ( wParam == SIZE_MAXIMIZED || wParam == SIZE_MINIMIZED )
       {
-        win64::opengl::resize_viewport( win64::global::mainWindowSize );
+        win64::opengl::resize_viewport( win64::global::mainWindow.size );
       }
       break;
     }
@@ -342,7 +338,7 @@ LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wPa
     case WM_DISPLAYCHANGE:
     case WM_EXITSIZEMOVE:
     {
-      win64::opengl::resize_viewport( win64::global::mainWindowSize );
+      win64::opengl::resize_viewport( win64::global::mainWindow.size );
       break;
     }
     case WM_DESTROY:
@@ -355,7 +351,9 @@ LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wPa
     {
       if ( !wParam )
       {
-        //        memset( win64::global::coreData.input.held, 0, bse::Input::STATE_COUNT );
+        #if !defined(BSE_BUILD_SKIP_INPUT)
+        memset( win64::global::platform.thisFrame.input.held, 0, bse::Input::STATE_COUNT );
+        #endif
       }
       break;
     }
@@ -369,7 +367,7 @@ LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wPa
   return result;
 }
 
-#if defined (BSE_DEVELOP_BUILD) || defined(BSE_DEBUG_BUILD)
+#if defined(BSE_BUILD_DEVELOP) || defined(BSE_BUILD_DEBUG)
 
 char const* BSE_TMP_CORE_FILENAME_0 = "bse_core0.tmp.dll";
 char const* BSE_TMP_CORE_FILENAME_1 = "bse_core1.tmp.dll";
@@ -377,7 +375,7 @@ char const* BSE_APP_FILENAME = "bse_core.dll";
 
 void bse_win64_init_core()
 {
-  win64::BseCore& coreDll = win64::global::core;
+  win64::BseCore& coreDll = win64::global::bseCore;
 
   _WIN32_FIND_DATAA findData;
   HANDLE findHandle = FindFirstFileA( BSE_APP_FILENAME, &findData );
@@ -416,13 +414,13 @@ namespace bse
 };
 
 #else
-#include "bse_core.cpp"
+#include "core/bse_core.cpp"
 
 void bse_win64_init_core()
 {
-  win64::global::core.initialize = &bse::core_initialize_internal;
-  win64::global::core.on_reload = &bse::core_on_reload_internal;
-  win64::global::core.tick = &bse::core_tick_internal;
+  win64::global::bseCore.initialize = &bse::core_initialize_internal;
+  win64::global::bseCore.on_reload = &bse::core_on_reload_internal;
+  win64::global::bseCore.tick = &bse::core_tick_internal;
 }
 
 #endif
