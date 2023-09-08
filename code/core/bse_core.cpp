@@ -2,8 +2,8 @@
 #include "bse_core.h"
 
 void initialize( bse::PlatformInitParams* );
-void on_reload( bse::Platform* );
-void tick( bse::Platform* );
+void on_reload();
+void tick();
 
 
 namespace bse
@@ -24,12 +24,12 @@ namespace bse
     #if  !defined(BSE_BUILD_SKIP_GRAPHICS)
     opengl_ext::init( platform->opengl_get_process_address );
     #endif
-    on_reload( pf );
+    on_reload();
   }
 
   void core_tick_internal( Platform* pf )
   {
-    tick( pf );
+    tick();
   }
 
   Platform* platform;
@@ -40,9 +40,9 @@ namespace bse
 #else
 //include devenv here?
 void initialize( bse::PlatformInitParams* ) { log_info( "Initialized nothing." ); }
-void on_reload( bse::Platform* ) { log_info( "Reloaded nothing." ); }
-void tick( bse::Platform* pf )
+void on_reload() { log_info( "Reloaded nothing." ); }
+void tick()
 {
-  log_info( "ticked nothing. dt: ", pf->thisFrame.deltaTime, "\n- - frame index: ", pf->thisFrame.frameIndex );
+  log_info( "ticked nothing. dt: ", bse::platform->thisFrame.deltaTime, "\n- - frame index: ", bse::platform->thisFrame.frameIndex );
 }
 #endif
