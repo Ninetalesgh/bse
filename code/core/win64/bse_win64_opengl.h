@@ -1,19 +1,29 @@
 #pragma once
 #include "core/include/bse_opengl_ext.h"
-#include "core/include/bse_color.h"
+#include "bse_win64.h"
 
 namespace win64
 {
+  struct WindowInitParameter
+  {
+    char const* windowName;
+    WNDCLASSEX wndClass;
+    int2 pos;
+    int2 size;
+  };
+  WindowContext create_window( WindowInitParameter const& parameter );
+
   namespace opengl
   {
+    //if you don't care, this should work and return the render context
+    HGLRC lazy_init_all( HDC deviceContext );
+
     s32 load_extensions();
-    s32 init_extensions();
-    // u32 init( HDC deviceContext, int2 viewportDimensions );
-
+    s32 set_pixel_format_for_dc( HDC deviceContext );
     HGLRC create_render_context( HDC deviceContext, HGLRC shareContext );
-
-    s32 init_device_context( HDC deviceContext );
-    s32 assign_render_context_to_current_thread( HDC deviceContext, HGLRC shareContext );
+    s32 assign_render_context_to_current_thread( HDC deviceContext, HGLRC renderContext );
+    s32 init_extensions( opengl_ext::get_proc_address_fn* get_proc_address );
+    s32 init_framebuffer();
 
     //called on the main thread the context was established on
     HGLRC create_render_context_for_worker_thread();
@@ -139,6 +149,12 @@ namespace win64
 
     s32 load_extensions()
     {
+      if ( wglChoosePixelFormatARB && wglCreateContextAttribsARB && wglGetPixelFormatAttribivARB && wglGetPixelFormatAttribfvARB && wglSwapIntervalEXT )
+      {
+        //already loaded
+        return 1;
+      }
+
       s32 result = 0;
       HWND dummyWindow = 0;
       WNDCLASSW wndClass {};
@@ -226,6 +242,8 @@ namespace win64
 
       check_gl_error();
 
+      // glEnable( GL_CULL_FACE );
+      // glCullFace( GL_BACK );
       return 1;
     }
 
@@ -257,18 +275,21 @@ namespace win64
       return 1;
     }
 
-    s32 init_lazy_default( HDC deviceContext, int2 viewportDimensions )
+    HGLRC lazy_init_all( HDC deviceContext )
     {
-      resize_viewport( viewportDimensions );
+      if ( !load_extensions() ) { BREAK; return 0; }
+      if ( !set_pixel_format_for_dc( deviceContext ) ) { BREAK; return 0; }
+      HGLRC renderContext = create_render_context( deviceContext, 0 );
+      if ( !renderContext ) { BREAK; return 0; }
+      if ( !assign_render_context_to_current_thread( deviceContext, renderContext ) ) { BREAK; return 0; }
 
-      // glEnable( GL_CULL_FACE );
-      // glCullFace( GL_BACK );
-
-
-
-      return 1;
+      HMODULE openglDll = LoadLibraryA( "opengl32.dll" );
+      if ( !init_extensions( &win64::opengl_get_proc_address ) ) { BREAK; return 0; }
+      if ( !init_framebuffer() ) { BREAK; return 0; }
+      return renderContext;
     }
 
+    //TODO make this prettier
     HGLRC create_render_context_for_worker_thread( HDC deviceContext, HGLRC renderContext )
     {
       check_gl_error();
@@ -296,5 +317,70 @@ namespace win64
       glViewport( 0, 0, dimensions.x, dimensions.y );
     }
   };
+
+  WindowContext create_window( WindowInitParameter const& parameter )
+  {
+    WindowContext resultWindow {};
+    wchar_t nameBuffer[MAX_BSE_PATH] = {};
+    utf8_to_wchar( parameter.windowName, nameBuffer, MAX_BSE_PATH );
+    WNDCLASSEX const& wndClass = parameter.wndClass;
+
+    if ( RegisterClassEx( &wndClass ) )
+    {
+      resultWindow.handle = CreateWindowEx( WS_EX_ACCEPTFILES,                // DWORD dwExStyle,                                  
+                                     wndClass.lpszClassName, // LPCWSTR lpClassName,                                  
+                                     nameBuffer,                       // LPCWSTR lpWindowName,                     
+                                     WS_OVERLAPPEDWINDOW | WS_VISIBLE, // DWORD dwStyle,                                 
+                                     parameter.pos.x,                      // int X,               
+                                     parameter.pos.y,                      // int Y,              
+                                     parameter.size.x,                  // int nWidth,               
+                                     parameter.size.y,                 // int nHeight,              
+                                     /*parent window*/ 0,              // HWND hWndParent,                    
+                                     /*menu*/ 0,                       // HMENU hMenu,           
+                                     wndClass.hInstance,     // HINSTANCE hInstance,                             
+                                     0 );                              // LPVOID lpParam 
+    }
+
+    if ( resultWindow.handle )
+    {
+      resultWindow.deviceContext = GetDC( resultWindow.handle );
+      assert( resultWindow.deviceContext );
+      if ( !opengl::set_pixel_format_for_dc( resultWindow.deviceContext ) )
+      {
+        BREAK;
+        return resultWindow;
+      }
+
+      resultWindow.renderContext = opengl::create_render_context( resultWindow.deviceContext, 0 );
+      if ( !resultWindow.renderContext )
+      {
+        BREAK;
+        return resultWindow;
+      }
+
+      if ( !opengl::assign_render_context_to_current_thread( resultWindow.deviceContext, resultWindow.renderContext ) )
+      {
+        BREAK;
+        return resultWindow;
+      }
+
+      if ( !glClear )
+      {
+        if ( !opengl::init_extensions( &opengl_get_proc_address ) )
+        {
+          BREAK;
+        }
+      }
+
+      if ( !opengl::init_framebuffer() )
+      {
+        BREAK;
+      }
+
+      opengl::resize_viewport( parameter.size );
+    }
+
+    return resultWindow;
+  }
 };
 

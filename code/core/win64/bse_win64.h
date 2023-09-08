@@ -32,7 +32,7 @@
 #endif
 #include <Xinput.h>
 
-#include "bse_win64_opengl.h"
+//#include "bse_win64_opengl.h"
 
 constexpr s32 MAX_BSE_PATH = 1024;
 namespace win64
@@ -96,7 +96,6 @@ namespace win64
     static s64                performanceCounterFrequency;
     static BseCore            bseCore;
     static HMODULE            openglDll;
-    static opengl::Context    openglContext;
     static WindowContext      mainWindow;
     static bool               running;
   };
@@ -124,78 +123,6 @@ namespace win64
     }
 
     return p;
-  }
-
-  struct WindowInitParameter
-  {
-    char const* windowName;
-    WNDCLASSEX wndClass;
-    int2 pos;
-    int2 size;
-  };
-  WindowContext create_window( WindowInitParameter const& parameter )
-  {
-    WindowContext resultWindow {};
-    wchar_t nameBuffer[MAX_BSE_PATH] = {};
-    utf8_to_wchar( parameter.windowName, nameBuffer, MAX_BSE_PATH );
-    WNDCLASSEX const& wndClass = parameter.wndClass;
-
-    if ( RegisterClassEx( &wndClass ) )
-    {
-      resultWindow.handle = CreateWindowEx( WS_EX_ACCEPTFILES,                // DWORD dwExStyle,                                  
-                                     wndClass.lpszClassName, // LPCWSTR lpClassName,                                  
-                                     nameBuffer,                       // LPCWSTR lpWindowName,                     
-                                     WS_OVERLAPPEDWINDOW | WS_VISIBLE, // DWORD dwStyle,                                 
-                                     parameter.pos.x,                      // int X,               
-                                     parameter.pos.y,                      // int Y,              
-                                     parameter.size.x,                  // int nWidth,               
-                                     parameter.size.y,                 // int nHeight,              
-                                     /*parent window*/ 0,              // HWND hWndParent,                    
-                                     /*menu*/ 0,                       // HMENU hMenu,           
-                                     wndClass.hInstance,     // HINSTANCE hInstance,                             
-                                     0 );                              // LPVOID lpParam 
-    }
-
-    if ( resultWindow.handle )
-    {
-      resultWindow.deviceContext = GetDC( resultWindow.handle );
-      assert( resultWindow.deviceContext );
-      if ( !opengl::set_pixel_format_for_dc( resultWindow.deviceContext ) )
-      {
-        BREAK;
-        return resultWindow;
-      }
-
-      resultWindow.renderContext = opengl::create_render_context( resultWindow.deviceContext, 0 );
-      if ( !resultWindow.renderContext )
-      {
-        BREAK;
-        return resultWindow;
-      }
-
-      if ( !opengl::assign_render_context_to_current_thread( resultWindow.deviceContext, resultWindow.renderContext ) )
-      {
-        BREAK;
-        return resultWindow;
-      }
-
-      if ( !glClear )
-      {
-        if ( !opengl::init_extensions( &opengl_get_proc_address ) )
-        {
-          BREAK;
-        }
-      }
-
-      if ( !opengl::init_framebuffer() )
-      {
-        BREAK;
-      }
-
-      opengl::resize_viewport( parameter.size );
-    }
-
-    return resultWindow;
   }
 
   #if !defined(BSE_BUILD_SKIP_INPUT)

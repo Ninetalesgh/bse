@@ -1,4 +1,5 @@
 #include "bse_win64.h"
+#include "bse_win64_opengl.h"
 #include "bse_win64_platform_callbacks.h"
 
 LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wParam, LPARAM lParam );
@@ -92,7 +93,6 @@ int bse_main( int argc, char** argv )
     parameter.wndClass.lpszClassName = L"bsewnd";
 
     win64::global::mainWindow = win64::create_window( parameter );
-    win64::global::mainWindow.size = initParams.window.size;
     assert( win64::global::mainWindow.handle );
   }
   #endif

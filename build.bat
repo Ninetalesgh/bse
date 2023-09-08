@@ -43,7 +43,7 @@ IF NOT "%~0"=="" (
 goto loop_parse_parameters
 )
 
-IF %build_config%==build-configuration: set build_config=%build_config%-release 
+IF %build_config%==build-configuration: set build_config=%build_config%-debug-development-release 
 IF x%out_file%==x set out_file=bse
 
 echo --------------------------------------------------------------
