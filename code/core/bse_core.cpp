@@ -41,8 +41,5 @@ namespace bse
 //include devenv here?
 void initialize( bse::PlatformInitParams* ) { log_info( "Initialized nothing." ); }
 void on_reload() { log_info( "Reloaded nothing." ); }
-void tick()
-{
-  log_info( "ticked nothing. dt: ", bse::platform->thisFrame.deltaTime, "\n- - frame index: ", bse::platform->thisFrame.frameIndex );
-}
+void tick() { log_info( "ticked nothing. dt: ", bse::platform->thisFrame.deltaTime, "\n- frame index: ", bse::platform->thisFrame.frameIndex ); }
 #endif

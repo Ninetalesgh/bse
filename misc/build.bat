@@ -6,8 +6,9 @@ setlocal EnableDelayedExpansion
 set bat_path=%~dp0
 
 set build_config=build-configuration:
-set app_path=
+set app_path=""
 set out_file=
+set out_path=
 
 IF "%~1"=="build" SHIFT
 IF "%~1"=="?" goto help_section
@@ -31,6 +32,7 @@ IF NOT "%~0"=="" (
     IF NOT "%~1"=="" (
       set app_path="%~1"
       IF "%out_file%"=="" set out_file=%~n1
+      IF "%out_path%"=="" set out_path=%~dp1
       SHIFT
     )
     goto loop_parse_parameters
@@ -51,38 +53,60 @@ IF NOT "%~0"=="" (
 goto loop_parse_parameters
 )
 
-IF EXIST code\bse_main.cpp (
-  set out_path=build
+
+@REM IF EXIST code\bse_main.cpp (
+@REM   set out_path=build
+@REM ) ELSE (
+@REM   IF EXIST ..\code\bse_main.cpp (
+@REM   set out_path=..\build
+@REM   ) ELSE (
+@REM     echo couldn't find bse_main.cpp in either code or ../code 
+@REM     goto end
+@REM   )
+@REM )
+
+IF %build_config%==build-configuration: set build_config=%build_config%-debug-development-release 
+IF "%out_file%"=="" set out_file=bse
+IF "%out_path%"=="" ( set out_path=%bat_path%..\build ) ELSE set out_path=%out_path%build
+
+
+
+echo --------------------------------------------------------------
+echo %build_config:-= %
+echo %app_path%
+IF %app_path%=="" (
+  echo app path - - - - - : no -app parameter given, building core only
 ) ELSE (
-  IF EXIST ..\code\bse_main.cpp (
-  set out_path=..\build
+  echo app path - - - - - : %app_path%
+)
+echo output filename- - : %out_file%
+echo --------------------------------------------------------------
+
+IF NOT EXIST "%out_path%" mkdir "%out_path%"
+pushd "%out_path%"
+
+set code_path=bse\code
+set /a x=0
+:search_code_path
+IF NOT EXIST %code_path%\bse_main.cpp (
+set code_path=..\%code_path%
+ IF %x% LSS 5 ( 
+  set /a "x+=1"
+  goto search_code_path 
   ) ELSE (
-    echo couldn't find bse_main.cpp in either code or ../code 
+    echo couldn't find directory \bse\code
+    popd
     goto end
   )
 )
 
-IF %build_config%==build-configuration: set build_config=%build_config%-debug-development-release 
-IF "%out_file%"=="" set out_file=bse
-
-echo --------------------------------------------------------------
-echo %build_config:-= %
-IF %app_path%=="" (
-echo app path - - - - - : no -app parameter given, building core only
-) ELSE echo app path - - - - - : %app_path%
-echo output filename- - : %out_file%
-echo --------------------------------------------------------------
-
-set code_path=..\..\code
+rem go back one more for the debug/development/release subdirectories
+set code_path=..\%code_path%
 
 set compiler_options=/I %code_path% /GR- /EHa- /FC /MT /nologo /volatile:iso /W4 /wd4068 /wd4100 /wd4201 /wd4701 /wd4189
 IF NOT %app_path%=="" set compiler_options=%compiler_options% /DBSE_BUILD_APP_PATH=%app_path%
 set linker_options=/link /opt:ref /incremental:no
 set app_exports=/EXPORT:core_initialize_internal /EXPORT:core_on_reload_internal /EXPORT:core_tick_internal
-
-IF NOT EXIST %out_path% mkdir %out_path%
-pushd %out_path%
-
 
 @REM ------------------------------------------------------------------------
 @REM -------- Debug Build ---------------------------------------------------
@@ -133,8 +157,8 @@ pushd %out_path%
   popd
 :skip_build_release
 
-popd
 
+popd
 goto end
 :help_section
   echo --------------------------------------------------------------

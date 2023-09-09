@@ -7,11 +7,15 @@ IF "%~1"=="?" goto help_section
 SHIFT
 IF NOT "%~0"=="" (
   IF "%~0"=="build" (
-    call misc/build.bat %*
+    pushd misc
+    call build.bat %*
+    popd
     goto end
   )
   IF "%~0"=="createapp" (
-    call misc/createapp.bat %*
+    pushd misc
+    call createapp.bat %*
+    popd
     goto end
   )
 

@@ -1,3 +1,5 @@
 build/
 localdata/
 .vscode/
+
+app/*/build
