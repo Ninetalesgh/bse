@@ -8,6 +8,12 @@
 # define BSE_ARRAY_MEMORY_ALLOCATE(size) memory::allocate(size)
 #endif
 
+#if defined (BSE_BUILD_MEMORY_REALLOCATE_OVERRIDE)
+# define BSE_ARRAY_MEMORY_REALLOCATE BSE_BUILD_MEMORY_REALLOCATE_OVERRIDE
+#else
+# define BSE_ARRAY_MEMORY_REALLOCATE(ptr, size, newSize) memory::reallocate(ptr, size, newSize)
+#endif
+
 #if defined (BSE_BUILD_MEMORY_FREE_OVERRIDE)
 # define BSE_ARRAY_MEMORY_FREE BSE_BUILD_MEMORY_FREE_OVERRIDE
 #else
@@ -60,17 +66,15 @@ namespace bse
     iterator end() { return iterator { t + count }; }
 
     array() : t( nullptr ), count( 0 ), capacity( 0 ) {}
-    array( array<T> const& other ) : count( other.count ), capacity( other.capacity ) { t = (T*) BSE_ARRAY_MEMORY_ALLOCATE( other.capacity );memcpy( t, other.t, count * sizeof( T ) ); }
+    array( array<T> const& other ) : count( other.count ), capacity( other.capacity ) { t = (T*) BSE_ARRAY_MEMORY_ALLOCATE( other.capacity * sizeof( T ) );memcpy( t, other.t, count * sizeof( T ) ); }
+    array( s32 capacity ) : count( 0 ), capacity( capacity ) { t = (T*) BSE_ARRAY_MEMORY_ALLOCATE( capacity * sizeof( T ) ); }
     array( T* raw, s32 count ) : t( raw ), count( count ), capacity( count ) {}
     ~array() { BSE_ARRAY_MEMORY_FREE( t, capacity ); }
 
   private:
     void reallocate( s32 newCapacity )
     {
-      T* newData = (T*) BSE_ARRAY_MEMORY_ALLOCATE( newCapacity );
-      memcpy( newData, t, count * sizeof( T ) );
-      BSE_ARRAY_MEMORY_FREE( t, capacity );
-      t = newData;
+      t = BSE_ARRAY_MEMORY_REALLOCATE( t, capacity * sizeof( T ), newCapacity * sizeof( T ) );
       capacity = newCapacity;
     }
     T* t;
@@ -81,4 +85,23 @@ namespace bse
   template<typename T> T const& array<T>::pop() { return t[--count]; }
   template<typename T> void array<T>::reserve( s32 capacityToReserve ) { count = min( count, capacityToReserve );  reallocate( capacityToReserve ); }
   template<typename T> T* array<T>::data() { return t; }
+
+
+  template<typename K, typename V> struct llmap
+  {
+  private:
+    struct Node {
+      K key;
+      V value;
+      Node* next;
+      Node( K const& k, V const& v ) : key( k ), value( v ), next( nullptr ) {}
+    };
+    Node* head;
+  };
+
+  template<typename V> struct llmap<char const*, V>
+  {
+
+  };
+
 };

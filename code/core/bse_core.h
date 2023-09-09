@@ -11,8 +11,8 @@
 #include "core/include/bse_thread.h"
 #include "core/include/bse_string_format.h"
 #include "core/include/bse_color.h"
+#include "core/include/bse_container.h"
 #include "core/include/bse_common.h"
-#include "core/include/bse_array.h"
 
 #if !defined(BSE_BUILD_SKIP_INPUT)
 # include "core/include/bse_input.h"
