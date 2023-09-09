@@ -1,14 +1,14 @@
 #pragma once
 
-//winsock
+//Winsock
 #pragma comment(lib,"ws2_32.lib")
 //WinMain
 #pragma comment(lib,"user32.lib")
-//time
+//Time
 #pragma comment(lib,"winmm.lib")
 //CoInitialize
 #pragma comment(lib,"Ole32.lib")
-//wgl
+//Graphics
 #pragma comment(lib,"opengl32.lib")
 #pragma comment(lib,"Gdi32.lib")
 

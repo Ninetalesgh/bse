@@ -2,10 +2,11 @@
 
 #include <memory>
 
-# if defined(_WIN32)
+# if defined(_MSC_VER)
 #   define INLINE __forceinline
 # else
 #   define INLINE inline
+//#   define INLINE inline __attribute__((always_inline))
 # endif
 
 #define array_count(array) (sizeof(array) / (sizeof((array)[0])))
@@ -52,17 +53,32 @@ constexpr s32 S32_MAX = 0x7fffffff;
 constexpr s64 S64_MAX = 0x7fffffffffffffff;
 constexpr float FLOAT_E = 0.00000011920928955078125f;
 
-
-constexpr INLINE s32 min( s32 a, s32 b ) { return a < b ? a : b; }
-constexpr INLINE s32 max( s32 a, s32 b ) { return a > b ? a : b; }
-constexpr INLINE s32 clamp( s32 value, s32 low, s32 high ) { return max( min( value, high ), low ); }
-
-constexpr INLINE u32 min( u32 a, u32 b ) { return a < b ? a : b; }
-constexpr INLINE u32 max( u32 a, u32 b ) { return a > b ? a : b; }
-constexpr INLINE u32 clamp( u32 value, u32 low, u32 high ) { return max( min( value, high ), low ); }
-
+constexpr INLINE u8    min( u8 a, u8 b ) { return a < b ? a : b; }
+constexpr INLINE u16   min( u16 a, u16 b ) { return a < b ? a : b; }
+constexpr INLINE u32   min( u32 a, u32 b ) { return a < b ? a : b; }
+constexpr INLINE u64   min( u64 a, u64 b ) { return a < b ? a : b; }
+constexpr INLINE s8    min( s8 a, s8 b ) { return a < b ? a : b; }
+constexpr INLINE s16   min( s16 a, s16 b ) { return a < b ? a : b; }
+constexpr INLINE s32   min( s32 a, s32 b ) { return a < b ? a : b; }
+constexpr INLINE s64   min( s64 a, s64 b ) { return a < b ? a : b; }
 constexpr INLINE float min( float a, float b ) { return a < b ? a : b; }
+constexpr INLINE u8    max( u8 a, u8 b ) { return a > b ? a : b; }
+constexpr INLINE u16   max( u16 a, u16 b ) { return a > b ? a : b; }
+constexpr INLINE u32   max( u32 a, u32 b ) { return a > b ? a : b; }
+constexpr INLINE u64   max( u64 a, u64 b ) { return a > b ? a : b; }
+constexpr INLINE s8    max( s8 a, s8 b ) { return a > b ? a : b; }
+constexpr INLINE s16   max( s16 a, s16 b ) { return a > b ? a : b; }
+constexpr INLINE s32   max( s32 a, s32 b ) { return a > b ? a : b; }
+constexpr INLINE s64   max( s64 a, s64 b ) { return a > b ? a : b; }
 constexpr INLINE float max( float a, float b ) { return a > b ? a : b; }
+constexpr INLINE u8    clamp( u8 value, u8 low, u8 high ) { return max( min( value, high ), low ); }
+constexpr INLINE u16   clamp( u16 value, u16 low, u16 high ) { return max( min( value, high ), low ); }
+constexpr INLINE u32   clamp( u32 value, u32 low, u32 high ) { return max( min( value, high ), low ); }
+constexpr INLINE u64   clamp( u64 value, u64 low, u64 high ) { return max( min( value, high ), low ); }
+constexpr INLINE s8    clamp( s8 value, s8 low, s8 high ) { return max( min( value, high ), low ); }
+constexpr INLINE s16   clamp( s16 value, s16 low, s16 high ) { return max( min( value, high ), low ); }
+constexpr INLINE s32   clamp( s32 value, s32 low, s32 high ) { return max( min( value, high ), low ); }
+constexpr INLINE s64   clamp( s64 value, s64 low, s64 high ) { return max( min( value, high ), low ); }
 constexpr INLINE float clamp( float value, float low, float high ) { return max( min( value, high ), low ); }
 
 constexpr INLINE u64 KiloBytes( u64 kiloBytes ) { return kiloBytes * 1024ULL; }
@@ -273,3 +289,23 @@ struct float4
   INLINE float4 const& operator-=( float4 const& other ) { return *this = *this - other; }
   INLINE float4 const& operator*=( float other ) { return *this = *this * other; }
 };
+
+INLINE int2   min( int2 const& a, int2 const& b ) { return int2 { min( a.x,b.x ),min( a.y,b.y ) }; }
+INLINE float2 min( float2 const& a, float2 const& b ) { return float2 { min( a.x,b.x ),min( a.y,b.y ) }; }
+INLINE int3   min( int3 const& a, int3 const& b ) { return int3 { min( a.x,b.x ),min( a.y,b.y ),min( a.z,b.z ), }; }
+INLINE float3 min( float3 const& a, float3 const& b ) { return float3 { min( a.x,b.x ),min( a.y,b.y ),min( a.z,b.z ), }; }
+INLINE int4   min( int4 const& a, int4 const& b ) { return int4 { min( a.x,b.x ),min( a.y,b.y ),min( a.z,b.z ),min( a.w,b.w ) }; }
+INLINE float4 min( float4 const& a, float4 const& b ) { return float4 { min( a.x,b.x ),min( a.y,b.y ),min( a.z,b.z ),min( a.w,b.w ) }; }
+INLINE int2   max( int2 const& a, int2 const& b ) { return int2 { max( a.x,b.x ),max( a.y,b.y ) }; }
+INLINE float2 max( float2 const& a, float2 const& b ) { return float2 { max( a.x,b.x ),max( a.y,b.y ) }; }
+INLINE int3   max( int3 const& a, int3 const& b ) { return int3 { max( a.x,b.x ),max( a.y,b.y ),max( a.z,b.z ), }; }
+INLINE float3 max( float3 const& a, float3 const& b ) { return float3 { max( a.x,b.x ),max( a.y,b.y ),max( a.z,b.z ), }; }
+INLINE int4   max( int4 const& a, int4 const& b ) { return int4 { max( a.x,b.x ),max( a.y,b.y ),max( a.z,b.z ),max( a.w,b.w ) }; }
+INLINE float4 max( float4 const& a, float4 const& b ) { return float4 { max( a.x,b.x ),max( a.y,b.y ),max( a.z,b.z ),max( a.w,b.w ) }; }
+INLINE int2   clamp( int2 const& value, int2 const& low, int2 const& high ) { return max( min( value, high ), low ); }
+INLINE float2 clamp( float2 const& value, float2 const& low, float2 const& high ) { return max( min( value, high ), low ); }
+INLINE int3   clamp( int3 const& value, int3 const& low, int3 const& high ) { return max( min( value, high ), low ); }
+INLINE float3 clamp( float3 const& value, float3 const& low, float3 const& high ) { return max( min( value, high ), low ); }
+INLINE int4   clamp( int4 const& value, int4 const& low, int4 const& high ) { return max( min( value, high ), low ); }
+INLINE float4 clamp( float4 const& value, float4 const& low, float4 const& high ) { return max( min( value, high ), low ); }
+

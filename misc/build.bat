@@ -69,8 +69,6 @@ IF %build_config%==build-configuration: set build_config=%build_config%-debug-de
 IF "%out_file%"=="" set out_file=bse
 IF "%out_path%"=="" ( set out_path=%bat_path%..\build ) ELSE set out_path=%out_path%build
 
-
-
 echo --------------------------------------------------------------
 echo %build_config:-= %
 echo %app_path%

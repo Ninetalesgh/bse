@@ -5,6 +5,7 @@
 //#define BSE_BUILD_SKIP_AUDIO
 //#define BSE_BUILD_SKIP_INPUT
 
+#include "core/include/bse_math.h"
 #include "core/include/bse_filesystem.h"
 #include "core/include/bse_debug.h"
 #include "core/include/bse_thread.h"
@@ -19,7 +20,7 @@
 
 #if !defined(BSE_BUILD_SKIP_GRAPHICS)
 # include "core/include/bse_image.h"
-# include "core/include/bse_opengl_ext.h"
+# include "core/include/bse_opengl.h"
 #endif
 
 #include "core/include/bse_unsorted_definitions.h"

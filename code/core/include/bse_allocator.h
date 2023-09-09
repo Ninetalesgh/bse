@@ -8,21 +8,14 @@ namespace bse
   {
     [[nodiscard]]
     void* allocate( s64 size );
+    [[nodiscard]]
+    void* reallocate( void* ptr, s64 oldSize, s64 newSize );
     void free( void* ptr, s64 size );
 
-    using allocate_fn = void* (s64 size);
-    using free_fn = void( void*, s64 size );
-
-    struct Allocator
-    {
-      allocate_fn* allocate;
-      free_fn* free;
-    };
+    //using allocate_fn = void* (s64 size);
+    //using reallocate_fn = void* (void*, s64 oldSize, s64 newSize);
+    //using free_fn = void( void*, s64 size );
   };
-
-
-
-
 
 
 

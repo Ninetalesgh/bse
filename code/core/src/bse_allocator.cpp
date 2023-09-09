@@ -7,6 +7,14 @@ namespace bse
   namespace memory
   {
     void* allocate( s64 size ) { return allocate( platform->default.allocator, size ); }
+
+    void* reallocate( void* ptr, s64 oldSize, s64 newSize )
+    {
+      void* newPtr = allocate( platform->default.allocator, newSize );
+      memmove( newPtr, ptr, min( oldSize, newSize ) );
+      free( platform->default.allocator, ptr );
+      return newPtr;
+    }
     void free( void* ptr, s64 size ) { free( platform->default.allocator, ptr ); }
   };
 
