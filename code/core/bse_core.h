@@ -5,25 +5,7 @@
 //#define BSE_BUILD_SKIP_AUDIO
 //#define BSE_BUILD_SKIP_INPUT
 
-#include "core/include/bse_math.h"
-#include "core/include/bse_filesystem.h"
-#include "core/include/bse_debug.h"
-#include "core/include/bse_thread.h"
-#include "core/include/bse_string_format.h"
-#include "core/include/bse_color.h"
-#include "core/include/bse_container.h"
-#include "core/include/bse_common.h"
-
-#if !defined(BSE_BUILD_SKIP_INPUT)
-# include "core/include/bse_input.h"
-#endif
-
-#if !defined(BSE_BUILD_SKIP_GRAPHICS)
-# include "core/include/bse_image.h"
-# include "core/include/bse_opengl.h"
-#endif
-
-#include "core/include/bse_unsorted_definitions.h"
+#include "include/bse_core_include.h"
 
 namespace bse
 {
@@ -42,8 +24,9 @@ namespace bse
     ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    using allocate_memory_fn = void* (s64 size);
-    using free_memory_fn = void( void* );
+    using allocate_virtual_memory_fn = void* (s64 size);
+    using decommit_virtual_memory_fn = void( void*, s64 size );
+    using free_virtual_memory_fn = void( void* );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
@@ -74,8 +57,9 @@ namespace bse
     ////////// Debug /////////////////////////////////////////////////////////////////////////////////////
     platformcallback::debug_log_fn* debug_log;
     ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
-    platformcallback::allocate_memory_fn* allocate_memory;
-    platformcallback::free_memory_fn* free_memory;
+    platformcallback::allocate_virtual_memory_fn* allocate_virtual_memory;
+    platformcallback::free_virtual_memory_fn* free_virtual_memory;
+    platformcallback::decommit_virtual_memory_fn* decommit_virtual_memory;
     ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
     platformcallback::get_file_info_fn* get_file_info;
     platformcallback::load_file_part_fn* load_file_part;
@@ -93,12 +77,16 @@ namespace bse
     //This is to be user defined
    // AppUserData* userData;
 
-    char const* executablePath;
-
-    struct
+    struct PlatformInfo
     {
-      ThreadSafeLinearAllocator* allocator;
-    } default;
+      char const* executablePath;
+      s32 processorCount;
+      ProcessorArchitecture processorArchitecture;
+      u32 virtualMemoryPageSize;
+      u32 virtualMemoryAllocationGranularity;
+    } info;
+
+
 
     struct FrameInfo
     {

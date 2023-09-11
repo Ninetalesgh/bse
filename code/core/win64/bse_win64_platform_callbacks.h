@@ -16,8 +16,9 @@ namespace win64
   ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  void* allocate_memory( s64 size );
-  void free_memory( void* allocationToFree );
+  void* allocate_virtual_memory( s64 size );
+  void free_virtual_memory( void* allocationToFree );
+  void decommit_virtual_memory( void* committedMemory, s64 size );
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
@@ -54,8 +55,9 @@ namespace win64
     global::platform.debug_log = &debug_log;
 
     ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
-    global::platform.allocate_memory = &allocate_memory;
-    global::platform.free_memory = &free_memory;
+    global::platform.allocate_virtual_memory = &allocate_virtual_memory;
+    global::platform.free_virtual_memory = &free_virtual_memory;
+    global::platform.decommit_virtual_memory = &decommit_virtual_memory;
 
     ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
     global::platform.get_file_info = &get_file_info;
@@ -104,17 +106,33 @@ namespace win64
   ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  void* allocate_memory( s64 size )
+  void* allocate_virtual_memory( s64 size )
   {
-    log_info( "Allocating ", size, " Bytes of Application RAM." );
+    log_info( "Reserving ", size, " Bytes of virtual Memory." );
     // return malloc( size );
     return VirtualAlloc( 0, (s64) size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE );
   }
 
-  void free_memory( void* allocationToFree )
+  void decommit_virtual_memory( void* committedMemory, s64 size )
+  {
+    if ( VirtualFree( committedMemory, size, MEM_DECOMMIT ) )
+    {
+      u32 errormsg = GetLastError();
+      log_warning( errormsg );
+      log_error( "test" );
+      BREAK;
+    }
+  }
+
+  void free_virtual_memory( void* allocationToFree )
   {
     //free( allocationToFree );
-    VirtualFree( allocationToFree, 0, MEM_RELEASE );
+    if ( VirtualFree( allocationToFree, 0, MEM_RELEASE ) )
+    {
+      u32 errormsg = GetLastError();
+      log_error( errormsg );
+      BREAK;
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////

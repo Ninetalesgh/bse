@@ -6,129 +6,279 @@ namespace bse
 {
   namespace memory
   {
-    void* allocate( s64 size ) { return allocate( platform->default.allocator, size ); }
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// General ///////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void* reallocate( void* ptr, s64 oldSize, s64 newSize )
+    void* allocate( Allocator* allocator, s64 size )
     {
-      void* newPtr = allocate( platform->default.allocator, newSize );
-      memmove( newPtr, ptr, min( oldSize, newSize ) );
-      free( platform->default.allocator, ptr );
-      return newPtr;
+      if ( allocator == nullptr )
+      {
+        return platform->allocate_virtual_memory( size );
+      }
+
+      switch ( allocator->type )
+      {
+        case Allocator::Type::Arena:
+        {
+          return allocate( (Arena*) allocator, size );
+        }
+        case Allocator::Type::Multipool:
+        {
+          return allocate( (Multipool*) allocator, size );
+        }
+        default:
+        {
+          BREAK;
+          return nullptr;
+        }
+      }
     }
-    void free( void* ptr, s64 size ) { free( platform->default.allocator, ptr ); }
-  };
 
-  struct ThreadSafeLinearAllocator
-  {
-    struct Entry
+    void* reallocate( Allocator* allocator, void* ptr, s64 oldSize, s64 newSize )
     {
-      char* begin;
-      char* end;
-    };
+      if ( allocator == nullptr )
+      {
+        void* newPtr = platform->allocate_virtual_memory( newSize );
+        memmove( newPtr, ptr, min( oldSize, newSize ) );
+        platform->free_virtual_memory( ptr );
+        return newPtr;
+      }
 
-    char* buffer;
-    Entry* entries;
-    Entry* lastEntry;
-    atomic32 threadGuard;
-  };
+      switch ( allocator->type )
+      {
+        case Allocator::Type::Arena:
+        {
+          return reallocate( (Arena*) allocator, ptr, oldSize, newSize );
+        }
+        case Allocator::Type::Multipool:
+        {
+          return reallocate( (Multipool*) allocator, ptr, oldSize, newSize );
+        }
+        default:
+        {
+          BREAK;
+          return nullptr;
+        }
+      }
+    }
 
-  INLINE char* align_pointer_forward( char* ptr, s32 byteAlignment ) { return (char*) (((u64( ptr ) - 1) | (byteAlignment - 1)) + 1); }
-
-  void* allocate_to_zero( ThreadSafeLinearAllocator* allocator, s64 size )
-  {
-    void* result = allocate( allocator, size );
-    memset( result, 0, size );
-    return result;
-  }
-  void* allocate( ThreadSafeLinearAllocator* allocator, s64 size )
-  {
-    LOCK_SCOPE( allocator->threadGuard ); //This isn't meant to be called often, not necessary to optimize now
-
-    //make sure there's space for entry
-    if ( allocator->entries->end + sizeof( ThreadSafeLinearAllocator::Entry ) > (char*) allocator->entries )
+    void free( Allocator* allocator, void* ptr, s64 size )
     {
-      BREAK; //TODO more space
+      if ( allocator == nullptr )
+      {
+        platform->free_virtual_memory( ptr );
+      }
+
+      switch ( allocator->type )
+      {
+        case Allocator::Type::Arena:
+        {
+          free( (Arena*) allocator, ptr );
+          break;
+        }
+        case Allocator::Type::Multipool:
+        {
+          free( (Multipool*) allocator, ptr, size );
+          break;
+        }
+        default:
+        {
+          BREAK;
+        }
+      }
+    }
+
+    void free( Allocator* allocator, void* ptr )
+    {
+      if ( allocator == nullptr )
+      {
+        platform->free_virtual_memory( ptr );
+      }
+
+      switch ( allocator->type )
+      {
+        case Allocator::Type::Arena:
+        {
+          free( (Arena*) allocator, ptr );
+          break;
+        }
+        case Allocator::Type::Multipool:
+        {
+          //multipool can't free without size?
+          //TODO probably can do
+          BREAK;
+          break;
+        }
+        default:
+        {
+          BREAK;
+        }
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Arena /////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    void* allocate( Arena* arena, s64 size )
+    {
+      constexpr u32 ALIGN = 16;
+      //TODO this alignment maybe a bit much?
+      u32 alignment = size > ALIGN ? ALIGN : round_up_to_next_power_of_two( u32( size ) );
+      char* result = align_pointer_forward( arena->ptr, alignment );
+      if ( result + size > arena->endPtr )
+      {
+        //TODO something here.. just ignore the allocation? this is a crazy scenario for repeatedly flushed big arenas
+        BREAK;
+        return nullptr;
+      }
+      arena->ptr = result + size;
+      arena->highestCommitPtr = (char*) max( (char*) arena->ptr, arena->highestCommitPtr );
+      return result;
+    }
+
+    void* reallocate( Arena* arena, void* ptr, s64 oldSize, s64 newSize )
+    {
+      if ( (char*) ptr + oldSize == arena->ptr )
+      {
+        arena->ptr += (newSize - oldSize);
+        return ptr;
+      }
+      else
+      {
+        void* newPtr = allocate( arena, newSize );
+        if ( newPtr )
+        {
+          memcpy( newPtr, ptr, min( newSize, oldSize ) );
+        }
+        return newPtr;
+      }
+    }
+
+    void free( Arena* arena, void* ptr ) { arena->ptr = (char*) ptr; }
+    void free( Arena* arena, void* ptr, s64 size )
+    {
+      if ( (char*) ptr + size != arena->ptr )
+      {
+        BREAK;
+      }
+      return free( arena, ptr );
+    }
+
+    Arena create_arena( s64 size )
+    {
+      Arena result;
+
+      char* ptr = (char*) platform->allocate_virtual_memory( size );
+      result.beginPtr = ptr;
+      result.ptr = ptr;
+      result.highestCommitPtr = ptr;
+      result.endPtr = ptr + size;
+
+      return result;
+    }
+
+    void release_arena( Arena* arena )
+    {
+      if ( (char*) arena != arena->ptr - sizeof( Arena ) )
+      {
+        platform->free_virtual_memory( arena->ptr );
+      }
+      else
+      {
+        //don't try to release arenas that aren't directly hooked to memory pages
+        BREAK;
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Multipool /////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    MonotonicPool* create_monotonic_pool( Allocator* parent, s32 elementSize, s32 elementCount )
+    {
+      s64 allocationSize;
+
+      //take page size into consideration here?
+
+     // platform->info.virtualMemoryPageSize;
+
+
+      char* allocation = (char*) allocate( parent, allocationSize );
+
+      MonotonicPool result;
+      result.next = nullptr;
+      result.begin = allocation; //?
+      result.parent = parent;
+      result.nextPool = nullptr;
+      result.elementSize = elementSize;
+      result.writeIndex = 0;
+      result.elementCount = elementCount; //?
+      return (MonotonicPool*) allocation;
+    }
+
+    void* allocate( MonotonicPool* pool )
+    {
+
+      if ( MonotonicPool::Slot* slot = pool->next )
+      {
+        pool->next = slot->next;
+        return slot;
+      }
+      else if ( pool->writeIndex < pool->elementCount )
+      {
+        return pool->begin + (pool->writeIndex++ * pool->elementSize);
+      }
+      else
+      {
+        if ( !pool->nextPool )
+        {
+          //TODO allocate pool
+        }
+
+        return allocate( pool->nextPool );
+      }
+    }
+
+    void free( MonotonicPool* pool, void* ptr )
+    {
+      MonotonicPool::Slot* slot = (MonotonicPool::Slot*) ptr;
+      slot->next = pool->next;
+      pool->next = slot;
+    }
+
+    void free( MonotonicPool* pool, void* ptr, s64 size ) { free( pool, ptr ); }
+
+    void* allocate( Multipool* multipool, s64 size )
+    {
+      if ( size > multipool->poolSizeMax )
+      {
+        //TODO return forward to other allocator/general shit
+      }
+      s64 const poolIndex = (size - 1) / multipool->poolSizeGranularity;
+
+      return allocate( &multipool->pools[poolIndex], size );
+    }
+
+    void* reallocate( Multipool* multipool, void* ptr, s64 oldSize, s64 newSize )
+    {
       return nullptr;
     }
 
-    s64 bestSlotSize = s64( ((char*) (allocator->entries - 1)) - allocator->entries->end );
-    ThreadSafeLinearAllocator::Entry* bestSlot = allocator->entries;
-    ThreadSafeLinearAllocator::Entry* search = allocator->lastEntry;
-
-    //linear find smallest space that fits O(n)
-    while ( search > allocator->entries )
-    {
-      s64 slotSize = search[-1].begin - search[0].end;
-      if ( slotSize > size && slotSize < bestSlotSize )
-      {
-        bestSlotSize = slotSize;
-        bestSlot = search;
-      }
-      --search;
-    }
-
-    if ( bestSlotSize < size )
-    {
-      BREAK; //TODO more space
-      return nullptr;
-    }
-
-    size_t bytes = (bestSlot - allocator->entries) * sizeof( ThreadSafeLinearAllocator::Entry );
-    memmove( allocator->entries - 1, allocator->entries, bytes );
-    --allocator->entries;
-    --bestSlot;
-    bestSlot->begin = bestSlot[1].end;
-    bestSlot->end = align_pointer_forward( bestSlot->begin + size, 64 );
-
-    return bestSlot->begin;
-  }
-
-  void free( ThreadSafeLinearAllocator* allocator, void* address )
-  {
-    LOCK_SCOPE( allocator->threadGuard );
-
-    ThreadSafeLinearAllocator::Entry* search = allocator->entries;
-
-    while ( search < allocator->lastEntry )
-    {
-      if ( search->begin == (char*) address )
-      {
-        size_t bytes = (search - allocator->entries) * sizeof( ThreadSafeLinearAllocator::Entry );
-        memmove( allocator->entries + 1, allocator->entries, bytes );
-        ++allocator->entries;
-        return;
-      }
-
-      ++search;
-    }
-    BREAK; //TODO address wasn't in this allocator? 
-  }
-
-  ThreadSafeLinearAllocator* create_thread_safe_linear_allocator( s64 size )
-  {
-    char* allocation = (char*) bse::platform->allocate_memory( size );
-    ThreadSafeLinearAllocator* result = (ThreadSafeLinearAllocator*) allocation;
-
-    if ( allocation )
-    {
-      result->buffer = align_pointer_forward( allocation + sizeof( ThreadSafeLinearAllocator ), 64 );
-
-      result->entries = (ThreadSafeLinearAllocator::Entry*) (allocation + size - sizeof( ThreadSafeLinearAllocator::Entry ));
-      result->entries[0].end = (char*) result->buffer;
-      result->entries[0].begin = nullptr;
-      result->lastEntry = result->entries;
-      result->threadGuard = atomic32();
-    }
-    else
+    void free( Multipool* multipool, void* ptr, s64 size )
     {
       BREAK;
     }
 
-    return result;
-  }
+    void free( Multipool* multipool, void* ptr )
+    {
+      BREAK;
+    }
 
-  void destroy_thread_safe_linear_allocator( ThreadSafeLinearAllocator* allocator )
-  {
-    bse::platform->free_memory( allocator );
-  }
+
+
+
+  };
 };
+

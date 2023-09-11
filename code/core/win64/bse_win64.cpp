@@ -4,11 +4,51 @@
 
 LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wParam, LPARAM lParam );
 
-void bse_win64_init_core();
 void bse_win64_loop();
+int bse_init( int argc, char** argv );
 
 int bse_main( int argc, char** argv )
 {
+  if ( !bse_init( argc, argv ) )
+  {
+    return 0;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Run Core Loop /////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  win64::global::running = true;
+  while ( win64::global::running )
+  {
+    //1) Pause thread if requested?
+
+    //2) Loop
+    bse_win64_loop();
+
+    //3) Swap Buffers?
+    win64::opengl::swap_buffers( win64::global::mainWindow.deviceContext );
+
+    //4) Increase Frame Index
+    ++win64::global::platform.thisFrame.frameIndex;
+  }
+
+  return 0;
+}
+
+void bse_win64_init_core();
+int bse_init( int argc, char** argv )
+{
+  s32 result = 1;
+  {
+    SYSTEM_INFO systemInfo {};
+    GetSystemInfo( &systemInfo );
+    bse::platform->info.processorCount = systemInfo.dwNumberOfProcessors;
+    bse::platform->info.virtualMemoryAllocationGranularity = systemInfo.dwAllocationGranularity;
+    bse::platform->info.virtualMemoryPageSize = systemInfo.dwPageSize;
+    bse::platform->info.processorArchitecture = bse::ProcessorArchitecture( systemInfo.wProcessorArchitecture );
+  }
+
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Init Callbacks so we are able to use debug logs and the like //////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -19,7 +59,6 @@ int bse_main( int argc, char** argv )
   ////////// Init Timer  ///////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  s32 result = 1;
   result = QueryPerformanceFrequency( (LARGE_INTEGER*) &win64::global::performanceCounterFrequency );
   assert( result );
 
@@ -31,6 +70,7 @@ int bse_main( int argc, char** argv )
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   bse_win64_init_core();
+
   bse::PlatformInitParams initParams {};
   initParams.programHandle = GetModuleHandle( NULL );
   initParams.platform = &win64::global::platform;
@@ -38,6 +78,7 @@ int bse_main( int argc, char** argv )
   initParams.commandLine.arguments = argv;
   win64::global::bseCore.initialize( &initParams, &win64::global::platform );
   if ( initParams.shutdownAfterInitializing ) return 0;
+
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Init Console (Is this relevant?) //////////////////////////////////////////////////////////
@@ -123,27 +164,9 @@ int bse_main( int argc, char** argv )
     win64::global::bseCore.on_reload( &win64::global::platform );
   }
 
-  //////////////////////////////////////////////////////////////////////////////////////////////////////
-  ////////// Run Core Loop /////////////////////////////////////////////////////////////////////////////
-  //////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  win64::global::running = true;
-  while ( win64::global::running )
-  {
-    //1) Pause thread if requested?
-
-    //2) Loop
-    bse_win64_loop();
-
-    //3) Swap Buffers?
-    win64::opengl::swap_buffers( win64::global::mainWindow.deviceContext );
-
-    //4) Increase Frame Index
-    ++win64::global::platform.thisFrame.frameIndex;
-  }
-
   return result;
 }
+
 
 void bse_win64_process_window_messages( HWND );
 void bse_win64_loop()

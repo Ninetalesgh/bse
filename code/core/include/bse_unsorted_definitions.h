@@ -1,2 +1,15 @@
 #pragma once
 
+namespace bse
+{
+  enum class ProcessorArchitecture : u16
+  {
+    PROCESSOR_ARCHITECTURE_INTEL = 0,
+    PROCESSOR_ARCHITECTURE_ARM = 5,
+    PROCESSOR_ARCHITECTURE_IA64 = 6,
+    PROCESSOR_ARCHITECTURE_AMD64 = 9,
+    PROCESSOR_ARCHITECTURE_ARM64 = 12,
+    PROCESSOR_ARCHITECTURE_UNKNOWN = 0xffff,
+  };
+};
+

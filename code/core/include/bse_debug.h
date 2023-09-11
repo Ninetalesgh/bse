@@ -4,7 +4,7 @@
 
 #define log_info( ... ) bse::debug::log({bse::debug::LogSeverity::INFO, bse::debug::LogOutputType::LOCAL_CONSOLE}, __VA_ARGS__)
 #define log_warning( ... ) bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::LOCAL_CONSOLE}, __VA_ARGS__)
-#define log_error( ... ) bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::LOCAL_AND_REMOTE}, __VA_ARGS__, " ", __FILE__, " #" __LINE__ )
+#define log_error( ... ) bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::LOCAL_AND_REMOTE}, __VA_ARGS__, " ", __FILE__, " #", __LINE__ )
 
 #if defined(assert)
 # undef assert

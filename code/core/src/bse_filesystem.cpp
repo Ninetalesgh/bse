@@ -15,20 +15,20 @@ namespace bse
   //   s32 mountedPathsCount;
   //   s32 loadedFilesCount;
   // };
-  struct FileSystem
-  {
+  // struct FileSystem
+  // {
 
-  };
+  // };
 
-  FileSystem* create_filesystem()
-  {
-    FileSystem* fs = (FileSystem*) allocate_to_zero( platform->default.allocator, sizeof( FileSystem ) );
-    // fs->writer = fs->mountedPaths;
-    // fs->mountedPathsCount = 0;
-    // fs->loadedFilesCount = 0;
-    // fs->next = nullptr;
-    return fs;
-  }
+  // FileSystem* create_filesystem()
+  // {
+  //   //    FileSystem* fs = (FileSystem*) allocate_to_zero( platform->default.allocator, sizeof( FileSystem ) );
+  //       // fs->writer = fs->mountedPaths;
+  //       // fs->mountedPathsCount = 0;
+  //       // fs->loadedFilesCount = 0;
+  //       // fs->next = nullptr;
+  //   return nullptr;
+  // }
 
 
 };
