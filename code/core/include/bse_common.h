@@ -2,12 +2,17 @@
 
 #include <memory>
 
-# if defined(_MSC_VER)
-#   define INLINE __forceinline
-# else
-#   define INLINE inline
+#if defined(BSE_BUILD_DEBUG) || defined(BSE_BUILD_DEVELOPMENT)
+#  define BSE_BUILD_DEBUG_DEVELOPMENT
+#endif
+
+
+#if defined(_MSC_VER)
+#  define INLINE __forceinline
+#else
+#  define INLINE inline
 //#   define INLINE inline __attribute__((always_inline))
-# endif
+#endif
 
 #define array_count(array) (sizeof(array) / (sizeof((array)[0])))
 
@@ -18,7 +23,8 @@ INLINE enumtypename  operator &  ( enumtypename a, enumtypename b ) { return enu
 INLINE enumtypename& operator &= ( enumtypename& a, enumtypename b ) { a = b & a; return a; }\
 INLINE enumtypename  operator ~  ( enumtypename a ) { return enumtypename( ~basictype( a ) ); }\
 INLINE enumtypename  operator ^  ( enumtypename a, enumtypename b ) { return enumtypename( basictype( a ) ^ basictype( b ) ); }\
-INLINE enumtypename& operator ^= ( enumtypename& a, enumtypename b ) { a = b ^ a; return a; }
+INLINE enumtypename& operator ^= ( enumtypename& a, enumtypename b ) { a = b ^ a; return a; }\
+INLINE bool enum_contains(enumtypename a, enumtypename b) { return (basictype(a) & basictype(b)) == basictype(b);}
 
 #define BSE_DEFINE_ENUM_OPERATORS_U8(enumtypename)  _DEFINE_ENUM_OPERATORS_INTERNAL(enumtypename, u8)
 #define BSE_DEFINE_ENUM_OPERATORS_U16(enumtypename) _DEFINE_ENUM_OPERATORS_INTERNAL(enumtypename, u16)

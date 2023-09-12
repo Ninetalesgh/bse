@@ -1,8 +1,8 @@
 #pragma once
 
+#include "bse_debug.h"
 #include "bse_math.h"
 #include "bse_filesystem.h"
-#include "bse_debug.h"
 #include "bse_thread.h"
 #include "bse_string_format.h"
 #include "bse_color.h"

@@ -85,7 +85,7 @@ IF /I NOT %response%==y (
 >> %bat_name% echo set app_name=%%app_name:"=%%
 >> %bat_name% echo set cpp_path="%%~dp0%%app_name%%.cpp"
 >> %bat_name% echo pushd %%misc_path%%
->> %bat_name% echo call build.bat -app %%cpp_path%%
+>> %bat_name% echo call build.bat -app %%cpp_path%% %%*
 >> %bat_name% echo popd
 >> %bat_name% echo :end
 

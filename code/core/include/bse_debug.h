@@ -13,7 +13,7 @@
 #if defined(BSE_BUILD_DEBUG)
 # define BREAK __debugbreak()
 # define assert(expression) { if ( !(expression) ) BREAK; }
-#elif defined(BSE_BUILD_DEVELOP)
+#elif defined(BSE_BUILD_DEVELOPMENT)
 # define BREAK {bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::LOCAL_CONSOLE}, "break in ", __FILE__," #", __LINE__ );}
 # define assert(expression) if (!(expression)) { bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::ALL}, "assert in ", __FILE__," #", __LINE__ );}
 #else

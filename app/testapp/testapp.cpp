@@ -118,15 +118,15 @@ void initialize( bse::PlatformInitParams* initParameters )
   //your initialization goes here
 
 
-  bse::memory::Arena test = bse::memory::create_arena( KiloBytes( 16 ) );
+  // bse::memory::Arena* test = bse::memory::new_arena( nullptr, 128 );
 
-  // bse::memory::allocate( &test, 0 );
-  // bse::memory::allocate( &test, 32 );
-  // bse::memory::allocate( &test, 31 );
-  // bse::memory::allocate( &test, 17 );
-  // bse::memory::allocate( &test, 63 );
-  // bse::memory::allocate( &test, 22 );
-  // bse::memory::allocate( &test, 7 );
+  // bse::memory::allocate( test, 0 );
+  // bse::memory::allocate( test, 32 );
+  // bse::memory::allocate( test, 31 );
+  // bse::memory::allocate( test, 17 );
+  // bse::memory::allocate( test, 63 );
+  // bse::memory::allocate( test, 22 );
+  // bse::memory::allocate( test, 7 );
 
 
   kln::plane testplane { 0,1,0,0 };

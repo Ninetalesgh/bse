@@ -132,7 +132,7 @@ set app_exports=/EXPORT:core_initialize_internal /EXPORT:core_on_reload_internal
   pushd development
   del *.pdb > NUL 2> NUL
 
-  set compiler_options_development=%compiler_options% /Od /DBSE_BUILD_DEVELOP
+  set compiler_options_development=%compiler_options% /Od /DBSE_BUILD_DEVELOPMENT
   cl /LD %code_path%\core\bse_core.cpp %compiler_options_development% /Fe:bse_core.dll %linker_options% %app_exports%
   cl     %code_path%\bse_main.cpp /Fe:"%out_file%_develop.exe" %compiler_options_development% %linker_options% 
   echo --------------------------------------------------------------

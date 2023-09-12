@@ -14,16 +14,30 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
+        #if defined(BS_BUILD_DEBUG_DEVELOPMENT)
+        s64 fill = size % platform->info.virtualMemoryPageSize;
+        if ( fill < 1024 )
+        {
+          log_warning( "Allocation only uses ", fill, " bytes of virtual page size "
+          , platform->info.virtualMemoryPageSize, ". Consider using a dedicated allocator instead of virtual memory." );
+        }
+        #endif
         return platform->allocate_virtual_memory( size );
       }
 
       switch ( allocator->type )
       {
-        case Allocator::Type::Arena:
+        case AllocatorType::Arena:
         {
           return allocate( (Arena*) allocator, size );
         }
-        case Allocator::Type::Multipool:
+        case AllocatorType::MonotonicPool:
+        {
+          //size irrelevant for monotonic allocators
+          return allocate( (MonotonicPool*) allocator );
+          break;
+        }
+        case AllocatorType::Multipool:
         {
           return allocate( (Multipool*) allocator, size );
         }
@@ -39,28 +53,35 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        void* newPtr = platform->allocate_virtual_memory( newSize );
+        void* newPtr = allocate( allocator, newSize );
         memmove( newPtr, ptr, min( oldSize, newSize ) );
-        platform->free_virtual_memory( ptr );
+        free( allocator, ptr );
         return newPtr;
       }
 
       switch ( allocator->type )
       {
-        case Allocator::Type::Arena:
+        case AllocatorType::Arena:
         {
           return reallocate( (Arena*) allocator, ptr, oldSize, newSize );
         }
-        case Allocator::Type::Multipool:
+        case AllocatorType::MonotonicPool:
+        {
+          BREAK; //monotonic allocators might have useful reallocation?
+          break;
+        }
+        case AllocatorType::Multipool:
         {
           return reallocate( (Multipool*) allocator, ptr, oldSize, newSize );
         }
         default:
         {
           BREAK;
-          return nullptr;
+          break;
         }
       }
+
+      return nullptr;
     }
 
     void free( Allocator* allocator, void* ptr, s64 size )
@@ -72,12 +93,17 @@ namespace bse
 
       switch ( allocator->type )
       {
-        case Allocator::Type::Arena:
+        case AllocatorType::Arena:
         {
           free( (Arena*) allocator, ptr );
           break;
         }
-        case Allocator::Type::Multipool:
+        case AllocatorType::MonotonicPool:
+        {
+          free( (MonotonicPool*) allocator, ptr );
+          break;
+        }
+        case AllocatorType::Multipool:
         {
           free( (Multipool*) allocator, ptr, size );
           break;
@@ -98,15 +124,20 @@ namespace bse
 
       switch ( allocator->type )
       {
-        case Allocator::Type::Arena:
+        case AllocatorType::Arena:
         {
           free( (Arena*) allocator, ptr );
           break;
         }
-        case Allocator::Type::Multipool:
+        case AllocatorType::MonotonicPool:
+        {
+          free( (MonotonicPool*) allocator, ptr );
+          break;
+        }
+        case AllocatorType::Multipool:
         {
           //multipool can't free without size?
-          //TODO probably can do
+          //TODO probably can do with pointer tricks?
           BREAK;
           break;
         }
@@ -123,18 +154,20 @@ namespace bse
 
     void* allocate( Arena* arena, s64 size )
     {
-      constexpr u32 ALIGN = 16;
-      //TODO this alignment maybe a bit much?
-      u32 alignment = size > ALIGN ? ALIGN : round_up_to_next_power_of_two( u32( size ) );
+      u32 alignment = size > Allocator::ALIGNMENT ? Allocator::ALIGNMENT : round_up_to_next_power_of_two( u32( size ) );
       char* result = align_pointer_forward( arena->ptr, alignment );
-      if ( result + size > arena->endPtr )
+
+      if ( result + size > arena->begin + arena->size )
       {
-        //TODO something here.. just ignore the allocation? this is a crazy scenario for repeatedly flushed big arenas
-        BREAK;
-        return nullptr;
+        if ( enum_contains( arena->policy, AllocatorPolicy::WhenFullAllocateFromParent ) )
+        {
+          s64 nextSize = enum_contains( arena->policy, AllocatorPolicy::GeometricGrowth ) ? 2 * arena->size : arena->size;
+          arena->nextArena = new_arena( arena->parent, nextSize, arena->policy );
+        }
+
+        return arena->nextArena ? allocate( arena->nextArena, size ) : nullptr;
       }
       arena->ptr = result + size;
-      arena->highestCommitPtr = (char*) max( (char*) arena->ptr, arena->highestCommitPtr );
       return result;
     }
 
@@ -142,142 +175,209 @@ namespace bse
     {
       if ( (char*) ptr + oldSize == arena->ptr )
       {
-        arena->ptr += (newSize - oldSize);
-        return ptr;
+        if ( (char*) ptr + newSize <= arena->begin + arena->size )
+        {
+          arena->ptr += (newSize - oldSize);
+          return ptr;
+        }
+      }
+
+      void* newPtr = allocate( arena, newSize );
+      if ( newPtr )
+      {
+        memcpy( newPtr, ptr, min( newSize, oldSize ) );
+      }
+      return newPtr;
+    }
+
+    void free( Arena* arena, void* ptr )
+    {
+      if ( arena->begin <= ptr && ptr < arena->begin + arena->size )
+      {
+        arena->ptr = (char*) ptr;
+      }
+      else if ( arena->nextArena )
+      {
+        free( arena->nextArena, ptr );
       }
       else
       {
-        void* newPtr = allocate( arena, newSize );
-        if ( newPtr )
-        {
-          memcpy( newPtr, ptr, min( newSize, oldSize ) );
-        }
-        return newPtr;
+        log_warning( "free called on memory not belonging to this arena." );
+        BREAK;
       }
     }
 
-    void free( Arena* arena, void* ptr ) { arena->ptr = (char*) ptr; }
-    void free( Arena* arena, void* ptr, s64 size )
+    Arena* new_arena( Allocator* parent, s64 size, AllocatorPolicy const& policy )
     {
-      if ( (char*) ptr + size != arena->ptr )
+      s64 allocationSize = sizeof( Arena ) + size;
+      if ( parent == nullptr )
+      {
+        //round up to page size, since it would be wasted otherwise
+        s64 roundUp = platform->info.virtualMemoryPageSize - (allocationSize % platform->info.virtualMemoryPageSize);
+        allocationSize += roundUp;
+        size += roundUp;
+      }
+
+      //Arena struct sits at the beginning of the allocation
+      Arena* result = (Arena*) allocate( parent, allocationSize );
+      if ( result )
+      {
+        result->type      = AllocatorType::Arena;
+        result->policy    = policy;
+        result->parent    = parent;
+        result->begin     = (char*) (result + 1);
+        result->ptr       = result->begin;
+        result->size      = size;
+        result->nextArena = nullptr;
+      }
+      return result;
+    }
+
+    void delete_arena( Arena* arena )
+    {
+      if ( arena->nextArena ) { delete_arena( arena->nextArena ); }
+      free( arena->parent, arena );
+    }
+
+    void clear_arena( Arena* arena )
+    {
+      arena->ptr = arena->begin;
+      if ( arena->nextArena ) clear_arena( arena->nextArena );
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// MonotonicPool /////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    void* allocate( MonotonicPool* pool )
+    {
+
+
+      if ( MonotonicPool::Slot* slot = pool->next )
+      {
+        //TODO do the math again here
+        pool->next = slot->next;
+
+        if ( !pool->next && (char*) slot < pool->begin + pool->size )
+        {
+          pool->next = (MonotonicPool::Slot*) (((char*) slot) + pool->granularity);
+          pool->next->next = nullptr;
+        }
+        return slot;
+      }
+      else if ( enum_contains( pool->policy, AllocatorPolicy::WhenFullAllocateFromParent ) && !pool->nextPool )
+      {
+        s64 nextSize = enum_contains( pool->policy, AllocatorPolicy::GeometricGrowth ) ? 2 * pool->size : pool->size;
+        pool->nextPool = new_monotonic_pool( pool->parent, nextSize, pool->granularity, pool->policy );
+      }
+
+      return pool->nextPool ? allocate( pool->nextPool ) : nullptr;
+    }
+
+    void free( MonotonicPool* pool, void* ptr )
+    {
+      if ( pool->begin <= ptr && ptr < pool->begin + pool->size )
+      {
+        MonotonicPool::Slot* slot = (MonotonicPool::Slot*) ptr;
+        slot->next = pool->next;
+        pool->next = slot;
+      }
+      else if ( pool->nextPool )
+      {
+        free( pool->nextPool, ptr );
+      }
+      else
+      {
+        log_warning( "free called on memory not belonging to this monotonic pool." );
+        BREAK;
+      }
+    }
+
+    MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity, AllocatorPolicy const& policy )
+    {
+      s64 allocationSize = sizeof( MonotonicPool ) + size;
+      if ( parent == nullptr )
+      {
+        //round up to page size, since it would be wasted otherwise
+        s64 roundUp = platform->info.virtualMemoryPageSize - (allocationSize % platform->info.virtualMemoryPageSize);
+        allocationSize += roundUp;
+        size += roundUp;
+      }
+
+      //round down to granularity or to pointer size, 
+      //so the monotonic pool sitting at the end of the allocation is at least a little aligned itself 
+      s64 roundDown = size % max( granularity, s64( sizeof( char* ) ) );
+      size -= roundDown;
+      allocationSize -= roundDown;
+
+      //we stick monotonicpools at the end so the allocated blocks are easier to align, 
+      //especially when they're big and/or coming from virtual memory
+      char* allocation = (char*) allocate( parent, allocationSize );
+
+      if ( u64( allocation ) & 0xffff ) //??
       {
         BREAK;
       }
-      return free( arena, ptr );
-    }
 
-    Arena create_arena( s64 size )
-    {
-      Arena result;
-
-      char* ptr = (char*) platform->allocate_virtual_memory( size );
-      result.beginPtr = ptr;
-      result.ptr = ptr;
-      result.highestCommitPtr = ptr;
-      result.endPtr = ptr + size;
+      MonotonicPool* result = (MonotonicPool*) (allocation + size);
+      if ( result )
+      {
+        result->type        = AllocatorType::MonotonicPool;
+        result->policy      = policy;
+        result->parent      = parent;
+        result->begin       = allocation;
+        result->next        = (MonotonicPool::Slot*) result->begin;
+        result->nextPool    = nullptr;
+        result->size        = size;
+        result->granularity = granularity;
+      }
 
       return result;
     }
 
-    void release_arena( Arena* arena )
+    void delete_monotonic_pool( MonotonicPool* pool )
     {
-      if ( (char*) arena != arena->ptr - sizeof( Arena ) )
-      {
-        platform->free_virtual_memory( arena->ptr );
-      }
-      else
-      {
-        //don't try to release arenas that aren't directly hooked to memory pages
-        BREAK;
-      }
+      if ( pool->nextPool ) { delete_monotonic_pool( pool->nextPool ); }
+      free( pool->parent, pool );
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// Multipool /////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    MonotonicPool* create_monotonic_pool( Allocator* parent, s32 elementSize, s32 elementCount )
-    {
-      s64 allocationSize;
-
-      //take page size into consideration here?
-
-     // platform->info.virtualMemoryPageSize;
-
-
-      char* allocation = (char*) allocate( parent, allocationSize );
-
-      MonotonicPool result;
-      result.next = nullptr;
-      result.begin = allocation; //?
-      result.parent = parent;
-      result.nextPool = nullptr;
-      result.elementSize = elementSize;
-      result.writeIndex = 0;
-      result.elementCount = elementCount; //?
-      return (MonotonicPool*) allocation;
-    }
-
-    void* allocate( MonotonicPool* pool )
-    {
-
-      if ( MonotonicPool::Slot* slot = pool->next )
-      {
-        pool->next = slot->next;
-        return slot;
-      }
-      else if ( pool->writeIndex < pool->elementCount )
-      {
-        return pool->begin + (pool->writeIndex++ * pool->elementSize);
-      }
-      else
-      {
-        if ( !pool->nextPool )
-        {
-          //TODO allocate pool
-        }
-
-        return allocate( pool->nextPool );
-      }
-    }
-
-    void free( MonotonicPool* pool, void* ptr )
-    {
-      MonotonicPool::Slot* slot = (MonotonicPool::Slot*) ptr;
-      slot->next = pool->next;
-      pool->next = slot;
-    }
-
-    void free( MonotonicPool* pool, void* ptr, s64 size ) { free( pool, ptr ); }
-
     void* allocate( Multipool* multipool, s64 size )
     {
       if ( size > multipool->poolSizeMax )
       {
+
         //TODO return forward to other allocator/general shit
       }
       s64 const poolIndex = (size - 1) / multipool->poolSizeGranularity;
-
       return allocate( &multipool->pools[poolIndex], size );
     }
 
     void* reallocate( Multipool* multipool, void* ptr, s64 oldSize, s64 newSize )
     {
-      return nullptr;
+      void* newPtr = allocate( multipool, newSize );
+      if ( newPtr )
+      {
+        memcpy( newPtr, ptr, min( newSize, oldSize ) );
+        free( multipool, ptr, oldSize );
+      }
+      return newPtr;
     }
 
     void free( Multipool* multipool, void* ptr, s64 size )
     {
-      BREAK;
+      s64 const poolIndex = (size - 1) / multipool->poolSizeGranularity;
+      free( &multipool->pools[poolIndex], ptr );
     }
 
-    void free( Multipool* multipool, void* ptr )
+    MonotonicPool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity, AllocatorPolicy const& policy )
     {
-      BREAK;
+      //TODODODODODODO
+      return nullptr;
     }
-
-
-
 
   };
 };

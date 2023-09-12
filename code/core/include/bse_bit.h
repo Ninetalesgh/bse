@@ -23,6 +23,9 @@ namespace bse
   u16 round_up_to_next_power_of_two( u16 value );
   u32 round_up_to_next_power_of_two( u32 value );
   u64 round_up_to_next_power_of_two( u64 value );
+  u16 round_down_to_next_power_of_two( u16 value );
+  u32 round_down_to_next_power_of_two( u32 value );
+  u64 round_down_to_next_power_of_two( u64 value );
 };
 
 
@@ -127,6 +130,10 @@ namespace bse
   INLINE u16 round_up_to_next_power_of_two( u16 value ) { return (u16( 1 ) << (u16( 16 ) - leading_zeroes( u16( value - 1u ) ))); }
   INLINE u32 round_up_to_next_power_of_two( u32 value ) { return (u32( 1 ) << (u32( 32 ) - leading_zeroes( u32( value - 1u ) ))); }
   INLINE u64 round_up_to_next_power_of_two( u64 value ) { return (u64( 1 ) << (u64( 64 ) - leading_zeroes( u64( value - 1u ) ))); }
+
+  INLINE u16 round_down_to_next_power_of_two( u16 value ) { return (u16( 1 ) << (u16( 15 ) - leading_zeroes( u16( value ) ))); }
+  INLINE u32 round_down_to_next_power_of_two( u32 value ) { return (u32( 1 ) << (u32( 31 ) - leading_zeroes( u32( value ) ))); }
+  INLINE u64 round_down_to_next_power_of_two( u64 value ) { return (u64( 1 ) << (u64( 63 ) - leading_zeroes( u64( value ) ))); }
 
   #endif
 

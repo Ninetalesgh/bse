@@ -390,7 +390,7 @@ LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wPa
   return result;
 }
 
-#if defined(BSE_BUILD_DEVELOP) || defined(BSE_BUILD_DEBUG)
+#if defined(BSE_BUILD_DEBUG_DEVELOPMENT)
 
 char const* BSE_TMP_CORE_FILENAME_0 = "bse_core0.tmp.dll";
 char const* BSE_TMP_CORE_FILENAME_1 = "bse_core1.tmp.dll";

@@ -12,6 +12,26 @@ namespace bse
     ////////// General ///////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    enum class AllocatorType : u32
+    {
+      Arena,
+      Multipool,
+      MonotonicPool
+    };
+    enum class AllocatorPolicy : u32
+    {
+      //
+      //If set the container will either grow or allocate memory from parent allocator.
+      //If unset overflowing allocations return nullptr.
+      WhenFullAllocateFromParent = 0b1,
+      //
+      //Only relevant if container is allowed to grow.
+      //If set the container will grow exponentially.
+      //If unset container will grow linearly.
+      GeometricGrowth = 0b10,
+    };
+    BSE_DEFINE_ENUM_OPERATORS_U32( AllocatorPolicy );
+
     struct Allocator;
     [[nodiscard]] void* allocate( Allocator* allocator, s64 size );
     [[nodiscard]] void* reallocate( Allocator* allocator, void* ptr, s64 oldSize, s64 newSize );
@@ -21,31 +41,58 @@ namespace bse
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// Arena /////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
-    ///// This behaves basically like a stack,                                  //////////////////////////
-    ///// free is ruthless and will free everything past the argument address   //////////////////////////
+    ///// This behaves basically like a stack.                         ///////////////////////////////////
+    ///// free(arena, ptr) is ruthless and will pop back to ptr,       ///////////////////////////////////
+    ///// so unless you are aware of that only ever LIFO like a stack. ///////////////////////////////////
+    ///// If reallocate is called on the last allocation it won't      ///////////////////////////////////
+    ///// have to move any data around, it will simple add more space. ///////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     struct Arena;
     [[nodiscard]] void* allocate( Arena* arena, s64 size );
     [[nodiscard]] void* reallocate( Arena* arena, void* ptr, s64 oldSize, s64 newSize );
-    void free( Arena* arena, void* ptr, s64 size );
     void free( Arena* arena, void* ptr );
 
+    //resets the arena write pointer
+    void clear_arena( Arena* arena );
 
-    [[nodiscard]] Arena* create_arena( Arena* parent, s64 size );
-    void create_arena( Arena& arena, s64 size );
-    void reset_arena( Arena* arena );
+    [[nodiscard]] Arena* new_arena( Allocator* parent, s64 size, AllocatorPolicy const& policy );
+    [[nodiscard]] Arena* new_arena( Allocator* parent, s64 size ) { return new_arena( parent, size, AllocatorPolicy::WhenFullAllocateFromParent | AllocatorPolicy::GeometricGrowth ); }
+    void delete_arena( Arena* arena );
+
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// MonotonicPool /////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ///// Monotonic pool allocations are of one fixed size only,       ///////////////////////////////////
+    ///// specified at allocator creation.                             ///////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    struct MonotonicPool;
+    [[nodiscard]] void* allocate( MonotonicPool* pool );
+    [[nodiscard]] void* reallocate( MonotonicPool* pool, void* ptr, s64 oldSize, s64 newSize );
+    void free( MonotonicPool* pool, void* ptr );
+
+    [[nodiscard]] MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity, AllocatorPolicy const& policy );
+    [[nodiscard]] MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity ) { return new_monotonic_pool( parent, size, granularity, AllocatorPolicy::WhenFullAllocateFromParent | AllocatorPolicy::GeometricGrowth ); }
+    void delete_monotonic_pool( MonotonicPool* pool );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// Multipool /////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ///// This is a meta structure that holds monotonic allocators            ////////////////////////////
+    ///// of different granularity and will allocate into the best fit.       ////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     struct Multipool;
     [[nodiscard]] void* allocate( Multipool* multipool, s64 size );
     [[nodiscard]] void* reallocate( Multipool* multipool, void* ptr, s64 oldSize, s64 newSize );
     void free( Multipool* multipool, void* ptr, s64 size );
-    void free( Multipool* multipool, void* ptr );
 
+    [[nodiscard]] MonotonicPool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity, AllocatorPolicy const& policy );
+    [[nodiscard]] MonotonicPool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity ) { return new_multipool( parent, maxPoolSize, poolSizeGranularity, AllocatorPolicy::WhenFullAllocateFromParent | AllocatorPolicy::GeometricGrowth ); }
+
+    //TODO VERY IMPORTANT ALLOCATORS SAFE FOR THREADING
   };
 };
 
@@ -67,13 +114,10 @@ namespace bse
 
     struct Allocator
     {
-      enum class Type : u64
-      {
-        Arena,
-        Multipool,
-        Monotonic
-      } type;
+      constexpr static u32 ALIGNMENT = 64;
       Allocator* parent;
+      AllocatorType type;
+      AllocatorPolicy policy;
     };
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -82,36 +126,14 @@ namespace bse
 
     struct Arena : Allocator
     {
-      char* beginPtr;
+      char* begin;
       char* ptr;
-      char* highestCommitPtr;
-      char* endPtr;
+      s64 size;
+      Arena* nextArena;
     };
 
-
-    Arena* create_arena( Arena* parent, s64 size )
-    {
-      Arena* result = (Arena*) allocate( parent, sizeof( Arena ) );
-      char* ptr = (char*) allocate( parent, size );
-
-      result->type = Allocator::Type::Arena;
-      result->parent = parent;
-      result->beginPtr = ptr;
-      result->ptr = ptr;
-      result->highestCommitPtr = ptr;
-      result->endPtr = ptr + size;
-
-      return result;
-    }
-
-
-    void reset_arena( Arena* arena )
-    {
-      arena->ptr = arena->beginPtr;
-    }
-
     //////////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////// Multipool /////////////////////////////////////////////////////////////////////////////////
+    ////////// MonotonicPool /////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     struct MonotonicPool : Allocator
@@ -123,10 +145,13 @@ namespace bse
       Slot* next;
       char* begin;
       MonotonicPool* nextPool;
-      s32 elementSize;
-      s32 writeIndex;
-      s32 elementCount;
+      s64 size;
+      s64 granularity;
     };
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Multipool /////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     struct Multipool : Allocator
     {
@@ -134,6 +159,7 @@ namespace bse
       s64 poolSizeMax;
       s64 poolSizeGranularity;
     };
+
 
 
     //TODO allocate these so the ptr fits on a cacheline and the pool struct sits at the end of it?
