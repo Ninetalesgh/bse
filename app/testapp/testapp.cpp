@@ -117,17 +117,19 @@ void initialize( bse::PlatformInitParams* initParameters )
 {
   //your initialization goes here
 
+  auto* test = bse::memory::new_multipool( nullptr, 2048, 8 );
 
-  // bse::memory::Arena* test = bse::memory::new_arena( nullptr, 128 );
-
-  // bse::memory::allocate( test, 0 );
-  // bse::memory::allocate( test, 32 );
-  // bse::memory::allocate( test, 31 );
-  // bse::memory::allocate( test, 17 );
-  // bse::memory::allocate( test, 63 );
-  // bse::memory::allocate( test, 22 );
+  auto* bla  = bse::memory::allocate( test, 30 );
+  // auto* bla1 = bse::memory::allocate( test, 0 );
+  // auto* bla2 = bse::memory::allocate( test, 31 );
+  // auto* bla3 = bse::memory::allocate( test, 17 );
+  // auto* bla4 = bse::memory::allocate( test, 63 );
+  // auto* bla5 = bse::memory::allocate( test, 2002 );
+  // auto* bla6 = bse::memory::allocate( test, 432 );
   // bse::memory::allocate( test, 7 );
 
+
+  bse::memory::delete_multipool( test );
 
   kln::plane testplane { 0,1,0,0 };
   kln::point testpoint { 1,2,3 };

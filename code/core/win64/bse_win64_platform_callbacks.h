@@ -127,7 +127,7 @@ namespace win64
   void free_virtual_memory( void* allocationToFree )
   {
     //free( allocationToFree );
-    if ( VirtualFree( allocationToFree, 0, MEM_RELEASE ) )
+    if ( !VirtualFree( allocationToFree, 0, MEM_RELEASE ) )
     {
       u32 errormsg = GetLastError();
       log_error( errormsg );

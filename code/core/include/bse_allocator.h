@@ -23,7 +23,7 @@ namespace bse
       //
       //If set the container will either grow or allocate memory from parent allocator.
       //If unset overflowing allocations return nullptr.
-      WhenFullAllocateFromParent = 0b1,
+      AllowGrowth = 0b1,
       //
       //Only relevant if container is allowed to grow.
       //If set the container will grow exponentially.
@@ -57,7 +57,7 @@ namespace bse
     void clear_arena( Arena* arena );
 
     [[nodiscard]] Arena* new_arena( Allocator* parent, s64 size, AllocatorPolicy const& policy );
-    [[nodiscard]] Arena* new_arena( Allocator* parent, s64 size ) { return new_arena( parent, size, AllocatorPolicy::WhenFullAllocateFromParent | AllocatorPolicy::GeometricGrowth ); }
+    [[nodiscard]] Arena* new_arena( Allocator* parent, s64 size ) { return new_arena( parent, size, AllocatorPolicy::AllowGrowth | AllocatorPolicy::GeometricGrowth ); }
     void delete_arena( Arena* arena );
 
 
@@ -74,7 +74,7 @@ namespace bse
     void free( MonotonicPool* pool, void* ptr );
 
     [[nodiscard]] MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity, AllocatorPolicy const& policy );
-    [[nodiscard]] MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity ) { return new_monotonic_pool( parent, size, granularity, AllocatorPolicy::WhenFullAllocateFromParent | AllocatorPolicy::GeometricGrowth ); }
+    [[nodiscard]] MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity ) { return new_monotonic_pool( parent, size, granularity, AllocatorPolicy::AllowGrowth | AllocatorPolicy::GeometricGrowth ); }
     void delete_monotonic_pool( MonotonicPool* pool );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -89,8 +89,10 @@ namespace bse
     [[nodiscard]] void* reallocate( Multipool* multipool, void* ptr, s64 oldSize, s64 newSize );
     void free( Multipool* multipool, void* ptr, s64 size );
 
-    [[nodiscard]] MonotonicPool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity, AllocatorPolicy const& policy );
-    [[nodiscard]] MonotonicPool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity ) { return new_multipool( parent, maxPoolSize, poolSizeGranularity, AllocatorPolicy::WhenFullAllocateFromParent | AllocatorPolicy::GeometricGrowth ); }
+    [[nodiscard]] Multipool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity, AllocatorPolicy const& policy );
+    [[nodiscard]] Multipool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity ) { return new_multipool( parent, maxPoolSize, poolSizeGranularity, AllocatorPolicy::AllowGrowth | AllocatorPolicy::GeometricGrowth ); }
+    void delete_multipool( Multipool* multipool );
+
 
     //TODO VERY IMPORTANT ALLOCATORS SAFE FOR THREADING
   };
@@ -155,29 +157,10 @@ namespace bse
 
     struct Multipool : Allocator
     {
-      MonotonicPool* pools;
+      MonotonicPool** pools;
       s64 poolSizeMax;
       s64 poolSizeGranularity;
+      s64 defaultElementCount;
     };
-
-
-
-    //TODO allocate these so the ptr fits on a cacheline and the pool struct sits at the end of it?
-    //TODO if next gets overwritten, we can check for this and it might be a good debugging tool?
-
-
-
-    void create_multipool()
-    {
-      s32 poolSizeMax = 32;
-      s32 poolSizeGranularity = 4;
-
-      // Multipool result;
-       //1 + ((poolSizeMax - 1) / poolSizeGranularity)
-       //allocate result.pools TODO
-       //set them to 0
-    }
-
-
   };
 };

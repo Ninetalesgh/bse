@@ -15,7 +15,7 @@ namespace bse
   u64 byte_to_u64( char* bytesStartingWithHighestByte );
 
   constexpr bool is_system_big_endian();
-  char* align_pointer_forward( char* ptr, s32 byteAlignment );
+  char* align_pointer_forward( char* ptr, s32 powerof2 );
 
   u16 leading_zeroes( u16 value );
   u32 leading_zeroes( u32 value );
@@ -26,6 +26,10 @@ namespace bse
   u16 round_down_to_next_power_of_two( u16 value );
   u32 round_down_to_next_power_of_two( u32 value );
   u64 round_down_to_next_power_of_two( u64 value );
+
+  s64 round_up_to_multiple_of( s64 value, s64 dividend );
+  s64 round_down_to_multiple_of( s64 value, s64 dividend );
+  s64 difference_to_multiple_of( s64 value, s64 dividend );
 };
 
 
@@ -115,9 +119,9 @@ namespace bse
     return bint.c[0] == 1;
   }
 
-  INLINE char* align_pointer_forward( char* ptr, s32 byteAlignment )
+  INLINE char* align_pointer_forward( char* ptr, s32 powerof2 )
   {
-    return (char*) (((u64( ptr ) - 1) | (byteAlignment - 1)) + 1);
+    return (char*) (((u64( ptr ) - 1) | (powerof2 - 1)) + 1);
   }
 
 
@@ -127,6 +131,8 @@ namespace bse
   INLINE u32 leading_zeroes( u32 value ) { return u32( __lzcnt( value ) ); }
   INLINE u64 leading_zeroes( u64 value ) { return u64( __lzcnt64( value ) ); }
 
+  #endif
+
   INLINE u16 round_up_to_next_power_of_two( u16 value ) { return (u16( 1 ) << (u16( 16 ) - leading_zeroes( u16( value - 1u ) ))); }
   INLINE u32 round_up_to_next_power_of_two( u32 value ) { return (u32( 1 ) << (u32( 32 ) - leading_zeroes( u32( value - 1u ) ))); }
   INLINE u64 round_up_to_next_power_of_two( u64 value ) { return (u64( 1 ) << (u64( 64 ) - leading_zeroes( u64( value - 1u ) ))); }
@@ -135,7 +141,9 @@ namespace bse
   INLINE u32 round_down_to_next_power_of_two( u32 value ) { return (u32( 1 ) << (u32( 31 ) - leading_zeroes( u32( value ) ))); }
   INLINE u64 round_down_to_next_power_of_two( u64 value ) { return (u64( 1 ) << (u64( 63 ) - leading_zeroes( u64( value ) ))); }
 
-  #endif
+  INLINE s64 round_up_to_multiple_of( s64 value, s64 dividend ) { return value + ((dividend - (value % dividend)) % dividend); }
+  INLINE s64 round_down_to_multiple_of( s64 value, s64 dividend ) { return value - (value % dividend); }
+  INLINE s64 difference_to_multiple_of( s64 value, s64 dividend ) { return (dividend - (value % dividend)) % dividend; }
 
 };
 

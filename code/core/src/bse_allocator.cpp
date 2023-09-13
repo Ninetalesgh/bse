@@ -16,10 +16,9 @@ namespace bse
       {
         #if defined(BS_BUILD_DEBUG_DEVELOPMENT)
         s64 fill = size % platform->info.virtualMemoryPageSize;
-        if ( fill < 1024 )
+        if ( size < platform->info.virtualMemoryPageSize * 2 && fill < 1024 )
         {
-          log_warning( "Allocation only uses ", fill, " bytes of virtual page size "
-          , platform->info.virtualMemoryPageSize, ". Consider using a dedicated allocator instead of virtual memory." );
+          log_warning( "Allocation of ", size, " bytes only uses ", fill, " bytes of virtual page size ", platform->info.virtualMemoryPageSize, "." );
         }
         #endif
         return platform->allocate_virtual_memory( size );
@@ -90,27 +89,29 @@ namespace bse
       {
         platform->free_virtual_memory( ptr );
       }
-
-      switch ( allocator->type )
+      else
       {
-        case AllocatorType::Arena:
+        switch ( allocator->type )
         {
-          free( (Arena*) allocator, ptr );
-          break;
-        }
-        case AllocatorType::MonotonicPool:
-        {
-          free( (MonotonicPool*) allocator, ptr );
-          break;
-        }
-        case AllocatorType::Multipool:
-        {
-          free( (Multipool*) allocator, ptr, size );
-          break;
-        }
-        default:
-        {
-          BREAK;
+          case AllocatorType::Arena:
+          {
+            free( (Arena*) allocator, ptr );
+            break;
+          }
+          case AllocatorType::MonotonicPool:
+          {
+            free( (MonotonicPool*) allocator, ptr );
+            break;
+          }
+          case AllocatorType::Multipool:
+          {
+            free( (Multipool*) allocator, ptr, size );
+            break;
+          }
+          default:
+          {
+            BREAK;
+          }
         }
       }
     }
@@ -121,29 +122,31 @@ namespace bse
       {
         platform->free_virtual_memory( ptr );
       }
-
-      switch ( allocator->type )
+      else
       {
-        case AllocatorType::Arena:
+        switch ( allocator->type )
         {
-          free( (Arena*) allocator, ptr );
-          break;
-        }
-        case AllocatorType::MonotonicPool:
-        {
-          free( (MonotonicPool*) allocator, ptr );
-          break;
-        }
-        case AllocatorType::Multipool:
-        {
-          //multipool can't free without size?
-          //TODO probably can do with pointer tricks?
-          BREAK;
-          break;
-        }
-        default:
-        {
-          BREAK;
+          case AllocatorType::Arena:
+          {
+            free( (Arena*) allocator, ptr );
+            break;
+          }
+          case AllocatorType::MonotonicPool:
+          {
+            free( (MonotonicPool*) allocator, ptr );
+            break;
+          }
+          case AllocatorType::Multipool:
+          {
+            //multipool can't free without size?
+            //TODO probably can do with pointer tricks?
+            BREAK;
+            break;
+          }
+          default:
+          {
+            BREAK;
+          }
         }
       }
     }
@@ -159,7 +162,7 @@ namespace bse
 
       if ( result + size > arena->begin + arena->size )
       {
-        if ( enum_contains( arena->policy, AllocatorPolicy::WhenFullAllocateFromParent ) )
+        if ( enum_contains( arena->policy, AllocatorPolicy::AllowGrowth ) )
         {
           s64 nextSize = enum_contains( arena->policy, AllocatorPolicy::GeometricGrowth ) ? 2 * arena->size : arena->size;
           arena->nextArena = new_arena( arena->parent, nextSize, arena->policy );
@@ -213,7 +216,7 @@ namespace bse
       if ( parent == nullptr )
       {
         //round up to page size, since it would be wasted otherwise
-        s64 roundUp = platform->info.virtualMemoryPageSize - (allocationSize % platform->info.virtualMemoryPageSize);
+        s64 roundUp = difference_to_multiple_of( allocationSize, platform->info.virtualMemoryPageSize );
         allocationSize += roundUp;
         size += roundUp;
       }
@@ -251,11 +254,8 @@ namespace bse
 
     void* allocate( MonotonicPool* pool )
     {
-
-
       if ( MonotonicPool::Slot* slot = pool->next )
       {
-        //TODO do the math again here
         pool->next = slot->next;
 
         if ( !pool->next && (char*) slot < pool->begin + pool->size )
@@ -265,7 +265,7 @@ namespace bse
         }
         return slot;
       }
-      else if ( enum_contains( pool->policy, AllocatorPolicy::WhenFullAllocateFromParent ) && !pool->nextPool )
+      else if ( !pool->nextPool && enum_contains( pool->policy, AllocatorPolicy::AllowGrowth ) )
       {
         s64 nextSize = enum_contains( pool->policy, AllocatorPolicy::GeometricGrowth ) ? 2 * pool->size : pool->size;
         pool->nextPool = new_monotonic_pool( pool->parent, nextSize, pool->granularity, pool->policy );
@@ -295,38 +295,32 @@ namespace bse
 
     MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity, AllocatorPolicy const& policy )
     {
-      s64 allocationSize = sizeof( MonotonicPool ) + size;
+      //64 byte aligned should suffice for any crazy business
+      s64 const poolSize = round_up_to_multiple_of( sizeof( MonotonicPool ), 64 );
+
+      s64 allocationSize = poolSize + size;
       if ( parent == nullptr )
       {
         //round up to page size, since it would be wasted otherwise
-        s64 roundUp = platform->info.virtualMemoryPageSize - (allocationSize % platform->info.virtualMemoryPageSize);
+        s64 roundUp = difference_to_multiple_of( allocationSize, platform->info.virtualMemoryPageSize );
         allocationSize += roundUp;
         size += roundUp;
       }
 
-      //round down to granularity or to pointer size, 
-      //so the monotonic pool sitting at the end of the allocation is at least a little aligned itself 
-      s64 roundDown = size % max( granularity, s64( sizeof( char* ) ) );
+      //round down to granularity so this won't be taking up unused space
+      s64 roundDown = size % granularity;
       size -= roundDown;
       allocationSize -= roundDown;
 
-      //we stick monotonicpools at the end so the allocated blocks are easier to align, 
-      //especially when they're big and/or coming from virtual memory
-      char* allocation = (char*) allocate( parent, allocationSize );
-
-      if ( u64( allocation ) & 0xffff ) //??
-      {
-        BREAK;
-      }
-
-      MonotonicPool* result = (MonotonicPool*) (allocation + size);
+      MonotonicPool* result = (MonotonicPool*) allocate( parent, allocationSize );
       if ( result )
       {
         result->type        = AllocatorType::MonotonicPool;
         result->policy      = policy;
         result->parent      = parent;
-        result->begin       = allocation;
+        result->begin       = ((char*) (result)) + poolSize;
         result->next        = (MonotonicPool::Slot*) result->begin;
+        result->next->next  = nullptr;
         result->nextPool    = nullptr;
         result->size        = size;
         result->granularity = granularity;
@@ -349,11 +343,21 @@ namespace bse
     {
       if ( size > multipool->poolSizeMax )
       {
-
-        //TODO return forward to other allocator/general shit
+        return allocate( multipool->parent, size );
       }
-      s64 const poolIndex = (size - 1) / multipool->poolSizeGranularity;
-      return allocate( &multipool->pools[poolIndex], size );
+      else
+      {
+        s64 const poolIndex = (size - 1) / multipool->poolSizeGranularity;
+        MonotonicPool*& pool = multipool->pools[poolIndex];
+        if ( !pool && enum_contains( multipool->policy, AllocatorPolicy::AllowGrowth ) )
+        {
+          s64 const poolGranularity = min( multipool->poolSizeMax, (poolIndex + 1) * multipool->poolSizeGranularity );
+          s64 const poolSize = multipool->defaultElementCount * poolGranularity;
+          pool = new_monotonic_pool( multipool->parent, poolSize, poolGranularity, multipool->policy );
+        }
+
+        return pool ? allocate( pool ) : nullptr;
+      }
     }
 
     void* reallocate( Multipool* multipool, void* ptr, s64 oldSize, s64 newSize )
@@ -369,16 +373,94 @@ namespace bse
 
     void free( Multipool* multipool, void* ptr, s64 size )
     {
-      s64 const poolIndex = (size - 1) / multipool->poolSizeGranularity;
-      free( &multipool->pools[poolIndex], ptr );
+      if ( size > multipool->poolSizeMax )
+      {
+        return free( multipool->parent, ptr, size );
+      }
+      else
+      {
+        s64 const poolIndex = (size - 1) / multipool->poolSizeGranularity;
+        free( multipool->pools[poolIndex], ptr );
+      }
     }
 
-    MonotonicPool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity, AllocatorPolicy const& policy )
+    Multipool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity, AllocatorPolicy const& policy )
     {
-      //TODODODODODODO
-      return nullptr;
+      s64 const poolCount = 1 + ((maxPoolSize - 1) / poolSizeGranularity);
+      s64 const allocationSize = sizeof( Multipool ) + poolCount * sizeofptr;
+
+      s64 fillerAllocationSize = 0;
+      s64 fillerPoolSize = 0;
+      if ( parent == nullptr )
+      {
+        //round up to page size, since it would be wasted otherwise
+        fillerAllocationSize = difference_to_multiple_of( allocationSize, platform->info.virtualMemoryPageSize );
+        fillerPoolSize = fillerAllocationSize - sizeof( MonotonicPool );
+        s64 roundDown = fillerPoolSize % max( poolSizeGranularity, s64( sizeofptr ) );
+
+        fillerAllocationSize -= roundDown;
+        fillerPoolSize -= roundDown;
+
+        //if the filler wouldn't even be able to fit one, forget about it
+        if ( fillerPoolSize / poolSizeGranularity <= 0 )
+        {
+          fillerAllocationSize = 0;
+        }
+      }
+
+      Multipool* result = (Multipool*) allocate( parent, allocationSize + fillerAllocationSize );
+
+      if ( result )
+      {
+        result->type                = AllocatorType::Multipool;
+        result->policy              = policy;
+        result->parent              = parent;
+        result->pools               = (MonotonicPool**) (result + 1);
+        result->poolSizeMax         = maxPoolSize;
+        result->poolSizeGranularity = poolSizeGranularity;
+        result->defaultElementCount = enum_contains( policy, AllocatorPolicy::AllowGrowth ) ? 16 : 0;
+      }
+
+      if ( fillerAllocationSize )
+      {
+        result->pools[0] = (MonotonicPool*) (((char*) result) + allocationSize);
+        MonotonicPool*& pool = result->pools[0];
+        pool->type        = AllocatorType::MonotonicPool;
+        pool->policy      = policy;
+        pool->parent      = parent;
+        pool->begin       = (char*) (pool + 1);
+        pool->next        = (MonotonicPool::Slot*) pool->begin;
+        pool->next->next  = nullptr;
+        pool->nextPool    = nullptr;
+        pool->size        = fillerPoolSize;
+        pool->granularity = poolSizeGranularity;
+      }
+
+      return result;
     }
 
+    void delete_multipool( Multipool* multipool )
+    {
+      s64 const poolCount = 1 + ((multipool->poolSizeMax - 1) / multipool->poolSizeGranularity);
+
+      MonotonicPool* pool = multipool->pools[0];
+      if ( pool != (MonotonicPool*) &multipool->pools[poolCount] )
+      {
+        //free this separately, it wasn't part of the multipool allocation deal
+        delete_monotonic_pool( pool );
+      }
+
+      for ( s64 i = 1; i < poolCount; ++i )
+      {
+        pool = multipool->pools[i];
+        if ( pool )
+        {
+          delete_monotonic_pool( pool );
+        }
+      }
+
+      free( multipool->parent, multipool );
+    }
   };
 };
 
