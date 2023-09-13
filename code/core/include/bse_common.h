@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-
+#include <initializer_list>
 #if defined(BSE_BUILD_DEBUG) || defined(BSE_BUILD_DEVELOPMENT)
 #  define BSE_BUILD_DEBUG_DEVELOPMENT
 #endif
@@ -30,9 +30,6 @@ INLINE bool enum_contains(enumtypename a, enumtypename b) { return (basictype(a)
 #define BSE_DEFINE_ENUM_OPERATORS_U16(enumtypename) _DEFINE_ENUM_OPERATORS_INTERNAL(enumtypename, u16)
 #define BSE_DEFINE_ENUM_OPERATORS_U32(enumtypename) _DEFINE_ENUM_OPERATORS_INTERNAL(enumtypename, u32)
 #define BSE_DEFINE_ENUM_OPERATORS_U64(enumtypename) _DEFINE_ENUM_OPERATORS_INTERNAL(enumtypename, u64)
-
-#define _PREPROCESSOR_STRING_INDIRECTION(x) #x
-#define BSE_PREPROCESSOR_STRING_INDIRECTION(x) _PREPROCESSOR_STRING_INDIRECTION(x)
 
 using s8  = signed char;
 using s16 = short;
@@ -143,8 +140,8 @@ struct int2
     };
   };
 
-  INLINE s32& operator[]( int i ) { return elements[i]; }
-  INLINE s32  operator[]( int i ) const { return elements[i]; }
+  INLINE s32& operator[]( s32 i ) { return elements[i]; }
+  INLINE s32  operator[]( s32 i ) const { return elements[i]; }
 
   INLINE int2 friend operator +( int2 const& a, int2 const& b ) { return { a.x + b.x, a.y + b.y }; }
   INLINE int2 friend operator -( int2 const& a, int2 const& b ) { return { a.x - b.x, a.y - b.y }; }
@@ -167,8 +164,8 @@ struct int3
     int2 xy;
   };
 
-  INLINE s32& operator[]( int i ) { return elements[i]; }
-  INLINE s32  operator[]( int i ) const { return elements[i]; }
+  INLINE s32& operator[]( s32 i ) { return elements[i]; }
+  INLINE s32  operator[]( s32 i ) const { return elements[i]; }
   INLINE int3	 operator-() { return int3 { -x, -y, -z }; }
 
   INLINE int3 friend operator +( int3 const& a, int3 const& b ) { return { a.x + b.x, a.y + b.y, a.z + b.z }; }
@@ -198,8 +195,8 @@ struct int4
     int3 xyz;
   };
 
-  INLINE s32& operator[]( int i ) { return elements[i]; }
-  INLINE s32  operator[]( int i ) const { return elements[i]; }
+  INLINE s32& operator[]( s32 i ) { return elements[i]; }
+  INLINE s32  operator[]( s32 i ) const { return elements[i]; }
 
   INLINE int4 friend operator +( int4 const& a, int3 const& b ) { return { a.x + b.x, a.y + b.y, a.z + b.z, a.w }; }
   INLINE int4 friend operator +( int4 const& a, int4 const& b ) { return { a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w }; }
@@ -228,8 +225,8 @@ struct float2
     struct { float x; float y; };
   };
 
-  INLINE float& operator[]( int i ) { return elements[i]; }
-  INLINE float  operator[]( int i ) const { return elements[i]; }
+  INLINE float& operator[]( s32 i ) { return elements[i]; }
+  INLINE float  operator[]( s32 i ) const { return elements[i]; }
 
   INLINE float2 friend operator +( float2 const& a, float2 const& b ) { return { a.x + b.x, a.y + b.y }; }
   INLINE float2 friend operator -( float2 const& a, float2 const& b ) { return { a.x - b.x, a.y - b.y }; }
@@ -256,8 +253,8 @@ struct float3
     struct { float r; float g; float b; };
   };
 
-  INLINE float& operator[]( int i ) { return elements[i]; }
-  INLINE float  operator[]( int i ) const { return elements[i]; }
+  INLINE float& operator[]( s32 i ) { return elements[i]; }
+  INLINE float  operator[]( s32 i ) const { return elements[i]; }
   INLINE float3	 operator-() { return float3 { -x, -y, -z }; }
 
   INLINE float3 friend operator +( float3 const& a, float3 const& b ) { return { a.x + b.x, a.y + b.y, a.z + b.z }; }
@@ -285,8 +282,8 @@ struct float4
     float3 xyz;
   };
 
-  INLINE float& operator[]( int i ) { return elements[i]; }
-  INLINE float  operator[]( int i ) const { return elements[i]; }
+  INLINE float& operator[]( s32 i ) { return elements[i]; }
+  INLINE float  operator[]( s32 i ) const { return elements[i]; }
 
   INLINE float4 friend operator +( float4 const& a, float3 const& b ) { return { a.x + b.x, a.y + b.y, a.z + b.z, a.w }; }
   INLINE float4 friend operator +( float4 const& a, float4 const& b ) { return { a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w }; }

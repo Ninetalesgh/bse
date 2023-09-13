@@ -1,34 +1,99 @@
 #pragma once
 
 #include "bse_allocator.h"
-
-#if defined (BSE_BUILD_MEMORY_ALLOCATE_OVERRIDE)
-# define BSE_ARRAY_MEMORY_ALLOCATE BSE_BUILD_MEMORY_ALLOCATE_OVERRIDE
-#else
-# define BSE_ARRAY_MEMORY_ALLOCATE(size) memory::allocate(size)
-#endif
-
-#if defined (BSE_BUILD_MEMORY_REALLOCATE_OVERRIDE)
-# define BSE_ARRAY_MEMORY_REALLOCATE BSE_BUILD_MEMORY_REALLOCATE_OVERRIDE
-#else
-# define BSE_ARRAY_MEMORY_REALLOCATE(ptr, size, newSize) memory::reallocate(ptr, size, newSize)
-#endif
-
-#if defined (BSE_BUILD_MEMORY_FREE_OVERRIDE)
-# define BSE_ARRAY_MEMORY_FREE BSE_BUILD_MEMORY_FREE_OVERRIDE
-#else
-# define BSE_ARRAY_MEMORY_FREE(ptr, size) memory::free(ptr, size)
-#endif
+#include "bse_string_format.h"
 
 namespace bse
 {
-  template<typename T> struct array
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// General ///////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  struct Container
   {
-    T& push( T const& _t );
+    Container( memory::Allocator* _allocator );
+    memory::Allocator* allocator;
+  };
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Array /////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  template <typename T> struct Array : Container
+  {
+    struct iterator;
+    T& push( T const& value );
     T const& pop();
-    void reserve( s32 capacityToReserve );
-    T* data();
-    s32 count;
+    void reserve( s32 newCapacity );
+
+    void remove( iterator const& at );
+    T& insert( iterator const& at, T const& value );
+    void insert( iterator const& at, std::initializer_list<T> const& items );
+    void insert( iterator const& at, Array<T> const& items );
+    void remove_range( iterator const& from, iterator const& to );
+
+    Array()
+      : Container( nullptr )
+      , data( 0 )
+      , count( 0 )
+      , capacity( 0 )
+    {}
+
+    Array( memory::Allocator* _allocator )
+      : Container( _allocator )
+      , data( 0 )
+      , count( 0 )
+      , capacity( 0 )
+    {}
+
+    Array( memory::Allocator* _allocator, s32 _capacity )
+      : Container( _allocator )
+      , count( 0 )
+      , capacity( _capacity )
+    {
+      data = (T*) memory::allocate( allocator, _capacity * sizeof( T ) );
+    }
+
+    Array( s32 _capacity )
+      : Container( nullptr )
+      , count( 0 )
+      , capacity( _capacity )
+    {
+      data = (T*) memory::allocate( allocator, _capacity * sizeof( T ) );
+    }
+
+    Array( std::initializer_list<T> const& list )
+      : Container( nullptr )
+      , count( s32( list.end() - list.begin() ) )
+      , capacity( count )
+    {
+      data = (T*) memory::allocate( allocator, capacity * sizeof( T ) );
+      memcpy( data, list.begin(), capacity * sizeof( T ) );
+    }
+    ~Array()
+    {
+      if ( data )
+      {
+        //if (allocator.type == AllocatorType::Arena) don't call free?
+        memory::free( allocator, data, s64( capacity * sizeof( T ) ) );
+      }
+    }
+
+    Array<T>& operator =( Array<T> const& array )
+    {
+      if ( data )
+      {
+        memory::free( allocator, data, capacity * sizeof( T ) );
+      }
+
+      count = capacity = array.count;
+      data = (T*) memory::allocate( allocator, capacity * sizeof( T ) );
+      memcpy( data, array.data, count * sizeof( T ) );
+      return *this;
+    }
+
+    INLINE T& operator[]( s32 i ) { return data[i]; }
+    INLINE T  operator[]( s32 i ) const { return data[i]; }
 
     struct iterator
     {
@@ -36,7 +101,7 @@ namespace bse
       using difference_type = s64;
       using pointer = T*;
       using reference = T&;
-      //using iterator_category =; is this needed?
+      //iterator_category not needed?
       iterator() : ptr( nullptr ) {}
       iterator( pointer _ptr ) : ptr( _ptr ) {}
       reference operator*() const { return *ptr; }
@@ -58,50 +123,173 @@ namespace bse
       friend iterator operator+( difference_type n, iterator const& it ) { return it + n; }
       friend iterator operator-( iterator const& it, difference_type n ) { iterator tmp = it;  tmp -= n;  return tmp; }
       friend difference_type operator-( iterator const& a, iterator const& b ) { return difference_type( a.ptr - b.ptr ); }
-
     private:
       T* ptr;
     };
-    iterator begin() { return iterator { t }; }
-    iterator end() { return iterator { t + count }; }
 
-    array() : t( nullptr ), count( 0 ), capacity( 0 ) {}
-    array( array<T> const& other ) : count( other.count ), capacity( other.capacity ) { t = (T*) BSE_ARRAY_MEMORY_ALLOCATE( other.capacity * sizeof( T ) );memcpy( t, other.t, count * sizeof( T ) ); }
-    array( s32 capacity ) : count( 0 ), capacity( capacity ) { t = (T*) BSE_ARRAY_MEMORY_ALLOCATE( capacity * sizeof( T ) ); }
-    array( T* raw, s32 count ) : t( raw ), count( count ), capacity( count ) {}
-    ~array() { BSE_ARRAY_MEMORY_FREE( t, capacity ); }
-
-  private:
-    void reallocate( s32 newCapacity )
+    iterator find( T const& value )
     {
-      t = BSE_ARRAY_MEMORY_REALLOCATE( t, capacity * sizeof( T ), newCapacity * sizeof( T ) );
-      capacity = newCapacity;
+      Array<T>::iterator finder = data;
+      Array<T>::iterator const last = end();
+      while ( finder != last )
+      {
+        if ( *finder == value ) { break; }
+        ++finder;
+      }
+      return finder;
     }
-    T* t;
+
+    iterator begin() { return iterator { data }; }
+    iterator end() { return iterator { data + count }; }
+
+    T* data;
+    s32 count;
     s32 capacity;
   };
 
-  template<typename T> T& array<T>::push( T const& _t ) { if ( count + 1 > capacity ) { reallocate( capacity * 2 ); }  return (t[count++] = _t); }
-  template<typename T> T const& array<T>::pop() { return t[--count]; }
-  template<typename T> void array<T>::reserve( s32 capacityToReserve ) { count = min( count, capacityToReserve );  reallocate( capacityToReserve ); }
-  template<typename T> T* array<T>::data() { return t; }
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// String ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-  template<typename K, typename V> struct llmap
+  struct String : Array<char>
   {
-  private:
-    struct Node {
+    //TODO make this standalone and not an array child    
+    String()
+      : Array<char>( nullptr )
+    {}
+
+    String( char const* str )
+      : Array<char>( nullptr )
+    {
+      count = capacity = string_length( str ) + 1;
+      data = (char*) memory::allocate( allocator, capacity );
+      memcpy( data, str, count * sizeof( char ) );
+    }
+
+    String& operator =( char const* str )
+    {
+      if ( data )
+      {
+        memory::free( allocator, data, capacity * sizeof( char ) );
+      }
+
+      count = capacity = string_length( str ) + 1;
+      data = (char*) memory::allocate( allocator, capacity * sizeof( char ) );
+      memcpy( data, str, count * sizeof( char ) );
+      return *this;
+    }
+
+    bool operator ==( String const& other ) { return string_match( this->data, other.data ); }
+  };
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Map ///////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  template<typename K, typename V> struct Map : Container
+  {
+    //TODO make map something actually useful
+    Map()
+      : Container( nullptr )
+      , pairs( nullptr )
+    {}
+    Map( memory::Allocator* _allocator )
+      : Container( _allocator )
+      , pairs( _allocator )
+    {}
+
+    struct KeyValuePair
+    {
       K key;
       V value;
-      Node* next;
-      Node( K const& k, V const& v ) : key( k ), value( v ), next( nullptr ) {}
     };
-    Node* head;
-  };
 
-  template<typename V> struct llmap<char const*, V>
+    INLINE V& operator[]( K const& k )
+    {
+      //TODO binary search this
+      for ( auto& pair : pairs )
+      {
+        if ( pair.key == k )
+        {
+          return pair.value;
+        }
+      }
+      return pairs.push( KeyValuePair { k, V{} } ).value;
+    }
+    INLINE V operator[]( K const& k ) const
+    {
+      for ( auto const& pair : pairs )
+      {
+        if ( pair.key == k )
+        {
+          return pair.value;
+        }
+      }
+      return pairs.push( KeyValuePair { k, V{} } ).value;
+    }
+
+    Array<KeyValuePair> pairs;
+  };
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////// Inline //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace bse
+{
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Array /////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  template<typename T> T& Array<T>::push( T const& value )
   {
+    if ( count == capacity )
+    {
+      s64 newCapacity = s64( capacity ) * 2;
+      if ( newCapacity > S32_MAX )
+      {
+        BREAK;
+      }
+      data = (T*) memory::reallocate( allocator, data, capacity * sizeof( T ), newCapacity * sizeof( T ) );
+      capacity = newCapacity;
+    }
+    return (data[count++] = value);
+  }
 
-  };
+  template<typename T> INLINE T const& Array<T>::pop() { return data[--count]; }
+  template<typename T> void Array<T>::reserve( s32 newCapacity )
+  {
+    data = (T*) memory::reallocate( allocator, data, capacity * sizeof( T ), newCapacity * sizeof( T ) );
+    count = min( count, newCapacity );
+    capacity = newCapacity;
+  }
+
+
+  template<typename T> void Array<T>::remove( iterator const& at )
+  {
+    BREAK;
+  }
+
+  template<typename T> T& Array<T>::insert( iterator const& at, T const& value )
+  {
+    return at;
+  }
+
+  template<typename T> void Array<T>::insert( iterator const& at, std::initializer_list<T> const& items )
+  {
+    BREAK;
+  }
+
+  template<typename T> void Array<T>::insert( iterator const& at, Array<T> const& items )
+  {
+    BREAK;
+  }
+
+
 
 };

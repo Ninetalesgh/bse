@@ -77,6 +77,11 @@ namespace bse
     //This is to be user defined
    // AppUserData* userData;
 
+    struct DefaultSystems
+    {
+      memory::Multipool* allocator;
+    } default;
+
     struct PlatformInfo
     {
       char const* executablePath;
@@ -85,8 +90,6 @@ namespace bse
       u32 virtualMemoryPageSize;
       u32 virtualMemoryAllocationGranularity;
     } info;
-
-
 
     struct FrameInfo
     {

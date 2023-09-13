@@ -23,10 +23,20 @@
 # define assert(expression) if (!(expression)) { bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::ALL}, "assert in ", __FILE__," #", __LINE__ );}
 #endif
 
+
+#if defined(_WIN32)
+# include <intrin.h>
+#endif
+
+
 namespace bse
 {
   namespace debug
   {
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Debug Log /////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
     enum class LogSeverity : u8
     {
       NONE    = 0x0,
@@ -55,5 +65,24 @@ namespace bse
     };
 
     template<typename... Args> void log( LogParameters const& parameters, Args... args );
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Profiling /////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    #if defined(_WIN32)
+    class ProfilingObject
+    {
+    public:
+      ProfilingObject( u64* output ) : output( output ) { *output =  __rdtsc(); }
+      ~ProfilingObject() { *output = __rdtsc() - *output; }
+    private:
+      u64* output;
+    };
+
+    # define PROFILE_SCOPE( outCycles_u64 ) bse::debug::ProfilingObject dbg_tmp_profiler_object##outCycles_u64 { &outCycles_u64 }
+    #else
+    # define PROFILE_SCOPE( outCycles_u64 )
+    #endif
   };
 };

@@ -112,24 +112,10 @@ float4x4 get_camera_projection_matrix( float viewportWidth, float viewportHeight
 }
 
 
-
 void initialize( bse::PlatformInitParams* initParameters )
 {
   //your initialization goes here
 
-  auto* test = bse::memory::new_multipool( nullptr, 2048, 8 );
-
-  auto* bla  = bse::memory::allocate( test, 30 );
-  // auto* bla1 = bse::memory::allocate( test, 0 );
-  // auto* bla2 = bse::memory::allocate( test, 31 );
-  // auto* bla3 = bse::memory::allocate( test, 17 );
-  // auto* bla4 = bse::memory::allocate( test, 63 );
-  // auto* bla5 = bse::memory::allocate( test, 2002 );
-  // auto* bla6 = bse::memory::allocate( test, 432 );
-  // bse::memory::allocate( test, 7 );
-
-
-  bse::memory::delete_multipool( test );
 
   kln::plane testplane { 0,1,0,0 };
   kln::point testpoint { 1,2,3 };
@@ -156,8 +142,65 @@ void on_reload()
   //your on reload goes here, relevant for hot reloading
 }
 
+
+#include <vector>
+#include <string>
+#include <map>
+
+static u64 bsetotal = 0;
+static u64 stdtotal = 0;
 void tick()
 {
-  //your per frame update goes here
+  u64 countbse;
+  u64 countstd;
+
+  {
+    PROFILE_SCOPE( countbse );
+    {
+      bse::String test = "oh";
+      bse::String test1 = "oh";
+      bse::String test2 = "oh";
+      bse::String test3 = "oh";
+      bse::String test4 = "oh";
+      bse::String test5 = "oh";
+      bse::String test6 = "oh";
+      bse::String test7 = "oh";
+      bse::String test8 = "oh";
+      test = "oh2";
+    }
+
+    {
+      bse::Map<int, char const*> testmap;
+    }
+
+    {
+      bse::Array<int> blubb = { 1,2,3 };
+    }
+  }
+
+  {
+    PROFILE_SCOPE( countstd );
+    {
+      std::map<int, char const*> poop;
+    }
+    {
+      std::vector<int> poop;
+    }
+    {
+      std::string test = "oh";
+      bse::String test1 = "oh";
+      bse::String test2 = "oh";
+      bse::String test3 = "oh";
+      bse::String test4 = "oh";
+      bse::String test5 = "oh";
+      bse::String test6 = "oh";
+      bse::String test7 = "oh";
+      bse::String test8 = "oh";
+      test = "oh2";
+    }
+  }
+
+  bsetotal += countbse;
+  stdtotal += countstd;
 }
 

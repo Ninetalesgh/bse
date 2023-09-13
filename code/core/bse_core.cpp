@@ -15,6 +15,7 @@ namespace bse
     platformParameters->window.position = int2 { -platformParameters->window.size.x - 200, 200 };
 
     platform = pf;
+    platform->default.allocator = memory::new_multipool( nullptr, platform->info.virtualMemoryPageSize - sizeof( memory::Multipool ), 16 );
     initialize( platformParameters );
   }
 
@@ -36,7 +37,7 @@ namespace bse
 };
 
 #if defined(BSE_BUILD_APP_PATH)
-#include BSE_PREPROCESSOR_STRING_INDIRECTION(BSE_BUILD_APP_PATH)
+#include _STRINGIZE(BSE_BUILD_APP_PATH)
 #else
 //include devenv here?
 void initialize( bse::PlatformInitParams* ) { log_info( "Initialized nothing." ); }

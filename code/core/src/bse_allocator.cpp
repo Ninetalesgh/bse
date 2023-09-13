@@ -53,8 +53,11 @@ namespace bse
       if ( allocator == nullptr )
       {
         void* newPtr = allocate( allocator, newSize );
-        memmove( newPtr, ptr, min( oldSize, newSize ) );
-        free( allocator, ptr );
+        if ( oldSize )
+        {
+          memmove( newPtr, ptr, min( oldSize, newSize ) );
+          free( allocator, ptr );
+        }
         return newPtr;
       }
 
@@ -186,7 +189,7 @@ namespace bse
       }
 
       void* newPtr = allocate( arena, newSize );
-      if ( newPtr )
+      if ( newPtr && oldSize )
       {
         memcpy( newPtr, ptr, min( newSize, oldSize ) );
       }
@@ -363,7 +366,7 @@ namespace bse
     void* reallocate( Multipool* multipool, void* ptr, s64 oldSize, s64 newSize )
     {
       void* newPtr = allocate( multipool, newSize );
-      if ( newPtr )
+      if ( newPtr && oldSize )
       {
         memcpy( newPtr, ptr, min( newSize, oldSize ) );
         free( multipool, ptr, oldSize );
