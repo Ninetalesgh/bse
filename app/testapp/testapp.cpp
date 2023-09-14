@@ -137,9 +137,14 @@ void initialize( bse::PlatformInitParams* initParameters )
 
 }
 
+static VFS tester;
+
 void on_reload()
 {
-  //your on reload goes here, relevant for hot reloading
+  // VFS* test = new_vfs( nullptr );
+
+  // delete_vfs( test );
+   //your on reload goes here, relevant for hot reloading
 }
 
 

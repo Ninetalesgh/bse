@@ -9,17 +9,13 @@ namespace bse
   ////////// General ///////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  struct Container
-  {
-    Container( memory::Allocator* _allocator );
-    memory::Allocator* allocator;
-  };
+  ////
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Array /////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  template <typename T> struct Array : Container
+  template <typename T> struct Array
   {
     struct iterator;
     T& push( T const& value );
@@ -30,24 +26,25 @@ namespace bse
     T& insert( iterator const& at, T const& value );
     void insert( iterator const& at, std::initializer_list<T> const& items );
     void insert( iterator const& at, Array<T> const& items );
+    void insert( iterator const& at, T const* items, s32 itemCount );
     void remove_range( iterator const& from, iterator const& to );
 
     Array()
-      : Container( nullptr )
+      : allocator( nullptr )
       , data( 0 )
       , count( 0 )
       , capacity( 0 )
     {}
 
     Array( memory::Allocator* _allocator )
-      : Container( _allocator )
+      : allocator( _allocator )
       , data( 0 )
       , count( 0 )
       , capacity( 0 )
     {}
 
     Array( memory::Allocator* _allocator, s32 _capacity )
-      : Container( _allocator )
+      : allocator( _allocator )
       , count( 0 )
       , capacity( _capacity )
     {
@@ -55,7 +52,7 @@ namespace bse
     }
 
     Array( s32 _capacity )
-      : Container( nullptr )
+      : allocator( nullptr )
       , count( 0 )
       , capacity( _capacity )
     {
@@ -63,13 +60,14 @@ namespace bse
     }
 
     Array( std::initializer_list<T> const& list )
-      : Container( nullptr )
+      : allocator( nullptr )
       , count( s32( list.end() - list.begin() ) )
       , capacity( count )
     {
       data = (T*) memory::allocate( allocator, capacity * sizeof( T ) );
       memcpy( data, list.begin(), capacity * sizeof( T ) );
     }
+
     ~Array()
     {
       if ( data )
@@ -127,21 +125,22 @@ namespace bse
       T* ptr;
     };
 
-    iterator find( T const& value )
+    iterator find( iterator begin, iterator end, T const& value )
     {
-      Array<T>::iterator finder = data;
-      Array<T>::iterator const last = end();
-      while ( finder != last )
+      while ( begin < end )
       {
-        if ( *finder == value ) { break; }
-        ++finder;
+        if ( *begin == value ) { break; }
+        ++begin;
       }
-      return finder;
+      return begin;
     }
+
+    iterator find( T const& value ) { return find( begin(), end(), value ); }
 
     iterator begin() { return iterator { data }; }
     iterator end() { return iterator { data + count }; }
 
+    memory::Allocator* allocator;
     T* data;
     s32 count;
     s32 capacity;
@@ -166,6 +165,12 @@ namespace bse
       memcpy( data, str, count * sizeof( char ) );
     }
 
+
+    void insert( iterator at, char const* str )
+    {
+      return Array<char>::insert( at, str, string_length( str ) + 1 );
+    }
+
     String& operator =( char const* str )
     {
       if ( data )
@@ -186,15 +191,15 @@ namespace bse
   ////////// Map ///////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  template<typename K, typename V> struct Map : Container
+  template<typename K, typename V> struct Map
   {
     //TODO make map something actually useful
     Map()
-      : Container( nullptr )
+      : allocator( nullptr )
       , pairs( nullptr )
     {}
     Map( memory::Allocator* _allocator )
-      : Container( _allocator )
+      : allocator( _allocator )
       , pairs( _allocator )
     {}
 
@@ -228,6 +233,7 @@ namespace bse
       return pairs.push( KeyValuePair { k, V{} } ).value;
     }
 
+    memory::Allocator* allocator;
     Array<KeyValuePair> pairs;
   };
 };
@@ -290,6 +296,9 @@ namespace bse
     BREAK;
   }
 
-
+  template<typename T> void Array<T>::insert( iterator const& at, T const* items, s32 itemCount )
+  {
+    BREAK;
+  }
 
 };

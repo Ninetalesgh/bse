@@ -1,15 +1,19 @@
 #pragma once
 
 #include "bse_file.h"
+#include "bse_container.h"
 
 namespace bse
 {
-  struct FileSystem;
+  struct VFS;
+
+
+  [[nodiscard]] VFS* new_vfs( memory::Allocator* allocator );
+  void delete_vfs( VFS* );
+
 
   using MountPathID = s32;
 
-  // [[nodiscard]]
-  // FileSystem* create_filesystem();
   // void destroy_filesystem( FileSystem* );
 
   // //keep the return value if you need the mounted path for writing, for reading it doesn't matter
@@ -35,5 +39,32 @@ namespace bse
 
   // bool write_file( FileSystem*, char const* path, void const* data, u32 size, MountPathID mountPathID = 0 );
   // bool append_file( FileSystem*, char const* path, void const* data, u32 size, MountPathID mountPathID = 0 );
+
+};
+
+
+
+namespace bse
+{
+  struct VFS
+  {
+    memory::Allocator* allocator;
+    Array<char> mountedPaths;
+  };
+
+  VFS* new_vfs( memory::Allocator* allocator )
+  {
+    static VFS tester;
+    return &tester;
+  }
+
+  void delete_vfs( VFS* vfs )
+  {
+    vfs->~VFS();
+    //memory::free( vfs->allocator, vfs );
+  }
+
+
+
 
 };

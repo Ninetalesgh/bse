@@ -4,7 +4,7 @@
 #include "bse_math.h"
 #include "bse_allocator.h"
 #include "bse_container.h"
-#include "bse_filesystem.h"
+#include "bse_vfs.h"
 #include "bse_thread.h"
 #include "bse_string_format.h"
 #include "bse_color.h"

@@ -14,14 +14,7 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        #if defined(BS_BUILD_DEBUG_DEVELOPMENT)
-        s64 fill = size % platform->info.virtualMemoryPageSize;
-        if ( size < platform->info.virtualMemoryPageSize * 2 && fill < 1024 )
-        {
-          log_warning( "Allocation of ", size, " bytes only uses ", fill, " bytes of virtual page size ", platform->info.virtualMemoryPageSize, "." );
-        }
-        #endif
-        return platform->allocate_virtual_memory( size );
+        return allocate( platform->default.allocator, size );
       }
 
       switch ( allocator->type )
@@ -30,15 +23,20 @@ namespace bse
         {
           return allocate( (Arena*) allocator, size );
         }
-        case AllocatorType::MonotonicPool:
-        {
-          //size irrelevant for monotonic allocators
-          return allocate( (MonotonicPool*) allocator );
-          break;
-        }
         case AllocatorType::Multipool:
         {
           return allocate( (Multipool*) allocator, size );
+          break;
+        }
+        case AllocatorType::MonotonicPool:
+        {
+          return allocate( (MonotonicPool*) allocator );
+          break;
+        }
+        case AllocatorType::VirtualMemory:
+        {
+          return allocate_virtual_memory( size );
+          break;
         }
         default:
         {
@@ -52,13 +50,7 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        void* newPtr = allocate( allocator, newSize );
-        if ( oldSize )
-        {
-          memmove( newPtr, ptr, min( oldSize, newSize ) );
-          free( allocator, ptr );
-        }
-        return newPtr;
+        return reallocate( platform->default.allocator, ptr, oldSize, newSize );
       }
 
       switch ( allocator->type )
@@ -67,14 +59,19 @@ namespace bse
         {
           return reallocate( (Arena*) allocator, ptr, oldSize, newSize );
         }
+        case AllocatorType::Multipool:
+        {
+          return reallocate( (Multipool*) allocator, ptr, oldSize, newSize );
+        }
+        case AllocatorType::VirtualMemory:
+        {
+          return reallocate_virtual_memory( ptr, oldSize, newSize );
+          break;
+        }
         case AllocatorType::MonotonicPool:
         {
           BREAK; //monotonic allocators might have useful reallocation?
           break;
-        }
-        case AllocatorType::Multipool:
-        {
-          return reallocate( (Multipool*) allocator, ptr, oldSize, newSize );
         }
         default:
         {
@@ -90,17 +87,12 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        platform->free_virtual_memory( ptr );
+        free( platform->default.allocator, ptr, size );
       }
       else
       {
         switch ( allocator->type )
         {
-          case AllocatorType::Arena:
-          {
-            free( (Arena*) allocator, ptr );
-            break;
-          }
           case AllocatorType::MonotonicPool:
           {
             free( (MonotonicPool*) allocator, ptr );
@@ -109,6 +101,16 @@ namespace bse
           case AllocatorType::Multipool:
           {
             free( (Multipool*) allocator, ptr, size );
+            break;
+          }
+          case AllocatorType::Arena:
+          {
+            free( (Arena*) allocator, ptr );
+            break;
+          }
+          case AllocatorType::VirtualMemory:
+          {
+            free_virtual_memory( ptr );
             break;
           }
           default:
@@ -129,14 +131,19 @@ namespace bse
       {
         switch ( allocator->type )
         {
+          case AllocatorType::MonotonicPool:
+          {
+            free( (MonotonicPool*) allocator, ptr );
+            break;
+          }
           case AllocatorType::Arena:
           {
             free( (Arena*) allocator, ptr );
             break;
           }
-          case AllocatorType::MonotonicPool:
+          case AllocatorType::VirtualMemory:
           {
-            free( (MonotonicPool*) allocator, ptr );
+            free_virtual_memory( ptr );
             break;
           }
           case AllocatorType::Multipool:
@@ -152,6 +159,38 @@ namespace bse
           }
         }
       }
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Virtual Memory Page ///////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    void* allocate_virtual_memory( s64 size )
+    {
+      #if defined(BS_BUILD_DEBUG_DEVELOPMENT)
+      s64 fill = size % platform->info.virtualMemoryPageSize;
+      if ( size < platform->info.virtualMemoryPageSize * 2 && fill < 1024 )
+      {
+        log_warning( "Allocation of ", size, " bytes only uses ", fill, " bytes of virtual page size ", platform->info.virtualMemoryPageSize, "." );
+      }
+      #endif
+      return platform->allocate_virtual_memory( size );
+    }
+
+    void* reallocate_virtual_memory( void* ptr, s64 oldSize, s64 newSize )
+    {
+      void* newPtr = allocate_virtual_memory( newSize );
+      if ( oldSize )
+      {
+        memmove( newPtr, ptr, min( oldSize, newSize ) );
+        free_virtual_memory( ptr );
+      }
+      return newPtr;
+    }
+
+    void free_virtual_memory( void* ptr )
+    {
+      platform->free_virtual_memory( ptr );
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -215,9 +254,11 @@ namespace bse
 
     Arena* new_arena( Allocator* parent, s64 size, AllocatorPolicy const& policy )
     {
+      Allocator virtualMemory;
       s64 allocationSize = sizeof( Arena ) + size;
       if ( parent == nullptr )
       {
+        parent = &virtualMemory;
         //round up to page size, since it would be wasted otherwise
         s64 roundUp = difference_to_multiple_of( allocationSize, platform->info.virtualMemoryPageSize );
         allocationSize += roundUp;
@@ -298,12 +339,14 @@ namespace bse
 
     MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity, AllocatorPolicy const& policy )
     {
+      Allocator virtualMemory;
       //64 byte aligned should suffice for any crazy business
       s64 const poolSize = round_up_to_multiple_of( sizeof( MonotonicPool ), 64 );
 
       s64 allocationSize = poolSize + size;
       if ( parent == nullptr )
       {
+        parent = &virtualMemory;
         //round up to page size, since it would be wasted otherwise
         s64 roundUp = difference_to_multiple_of( allocationSize, platform->info.virtualMemoryPageSize );
         allocationSize += roundUp;
@@ -389,6 +432,7 @@ namespace bse
 
     Multipool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity, AllocatorPolicy const& policy )
     {
+      Allocator virtualMemory;
       s64 const poolCount = 1 + ((maxPoolSize - 1) / poolSizeGranularity);
       s64 const allocationSize = sizeof( Multipool ) + poolCount * sizeofptr;
 
@@ -396,6 +440,7 @@ namespace bse
       s64 fillerPoolSize = 0;
       if ( parent == nullptr )
       {
+        parent = &virtualMemory;
         //round up to page size, since it would be wasted otherwise
         fillerAllocationSize = difference_to_multiple_of( allocationSize, platform->info.virtualMemoryPageSize );
         fillerPoolSize = fillerAllocationSize - sizeof( MonotonicPool );
