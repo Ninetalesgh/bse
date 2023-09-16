@@ -3,6 +3,7 @@
 #include "bse_allocator.h"
 #include "bse_string_format.h"
 
+
 namespace bse
 {
   //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -18,6 +19,7 @@ namespace bse
   template <typename T> struct Array
   {
     struct iterator;
+    T& push() { return push( T() ); }
     T& push( T const& value );
     T const& pop();
     void reserve( s32 newCapacity );
@@ -48,7 +50,7 @@ namespace bse
       , count( 0 )
       , capacity( _capacity )
     {
-      data = (T*) memory::allocate( allocator, _capacity * sizeof( T ) );
+      _internal_allocate( _capacity );
     }
 
     Array( s32 _capacity )
@@ -56,7 +58,7 @@ namespace bse
       , count( 0 )
       , capacity( _capacity )
     {
-      data = (T*) memory::allocate( allocator, _capacity * sizeof( T ) );
+      _internal_allocate( _capacity );
     }
 
     Array( std::initializer_list<T> const& list )
@@ -64,29 +66,30 @@ namespace bse
       , count( s32( list.end() - list.begin() ) )
       , capacity( count )
     {
-      data = (T*) memory::allocate( allocator, capacity * sizeof( T ) );
-      memcpy( data, list.begin(), capacity * sizeof( T ) );
+      _internal_allocate( capacity );
+      _internal_copy_const_elements( list.begin(), count );
+    }
+
+    Array( Array<T> const& array )
+      : allocator( array.allocator )
+      , count( array.count )
+      , capacity( array.count )
+    {
+      _internal_allocate( capacity );
+      _internal_copy( array.data, count );
     }
 
     ~Array()
     {
-      if ( data )
-      {
-        //if (allocator.type == AllocatorType::Arena) don't call free?
-        memory::free( allocator, data, s64( capacity * sizeof( T ) ) );
-      }
+      _internal_try_free();
     }
 
     Array<T>& operator =( Array<T> const& array )
     {
-      if ( data )
-      {
-        memory::free( allocator, data, capacity * sizeof( T ) );
-      }
-
+      _internal_try_free();
       count = capacity = array.count;
-      data = (T*) memory::allocate( allocator, capacity * sizeof( T ) );
-      memcpy( data, array.data, count * sizeof( T ) );
+      _internal_allocate( array.count );
+      _internal_copy( array.data, count );
       return *this;
     }
 
@@ -125,7 +128,7 @@ namespace bse
       T* ptr;
     };
 
-    iterator find( iterator begin, iterator end, T const& value )
+    iterator find( iterator begin, iterator end, T const& value ) const
     {
       while ( begin < end )
       {
@@ -135,57 +138,263 @@ namespace bse
       return begin;
     }
 
-    iterator find( T const& value ) { return find( begin(), end(), value ); }
-
-    iterator begin() { return iterator { data }; }
-    iterator end() { return iterator { data + count }; }
+    INLINE iterator find( T const& value ) const { return find( begin(), end(), value ); }
+    INLINE iterator begin() const { return iterator { data }; }
+    INLINE iterator end() const { return iterator { data + count }; }
 
     memory::Allocator* allocator;
     T* data;
     s32 count;
     s32 capacity;
+
+  private:
+    INLINE void _internal_try_free()
+    {
+      if ( data )
+      {
+        if ( !std::is_trivially_destructible<T>() )
+        {
+          T* entry = data;
+          T* const last = data + count;
+          while ( entry != last )
+          {
+            entry++->~T();
+          }
+        }
+
+        //if (allocator.type == AllocatorType::Arena) don't call free?
+        memory::free( allocator, data, s64( capacity * sizeof( T ) ) );
+      }
+    }
+    INLINE void _internal_allocate( s32 newCapacity )
+    {
+      data = (T*) memory::allocate( allocator, newCapacity * sizeof( T ) );
+    }
+
+    INLINE void _internal_copy_const_elements( T const* from, s32 c )
+    {
+      if ( std::is_trivially_constructible<T>() )
+      {
+        memcpy( data, from, c * sizeof( T ) );
+      }
+      else
+      {
+        T const* const last = from + c;
+        T* to = data;
+        while ( from != last )
+        {
+          *to++ = *from++;
+        }
+      }
+    }
+    INLINE void _internal_copy( T* from, s32 c )
+    {
+      if ( std::is_trivially_constructible<T>() )
+      {
+        memcpy( data, from, c * sizeof( T ) );
+      }
+      else
+      {
+        T* const last = from + c;
+        T* to = data;
+        while ( from != last )
+        {
+          *to++ = *from++;
+        }
+      }
+    }
   };
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// String ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  struct String : Array<char>
+  struct String
   {
-    //TODO make this standalone and not an array child    
+  private:
+    INLINE void _internal_reallocate_no_move( s32 newCapacity )
+    {
+      _internal_try_free();
+      capacity = max( newCapacity, MIN_CAPACITY );
+      _internal_allocate( newCapacity );
+    }
+
+    INLINE void _internal_try_free()
+    {
+      if ( capacity > MIN_CAPACITY )
+      {
+        //if (allocator.type == AllocatorType::Arena) don't call free?
+        memory::free( allocator, dataPtr, s64( capacity ) );
+      }
+    }
+
+    INLINE void _internal_allocate( s32 newCapacity )
+    {
+      if ( newCapacity > MIN_CAPACITY )
+      {
+        dataPtr = (char*) memory::allocate( allocator, newCapacity );
+      }
+    }
+
+    INLINE void _internal_copy_const( char const* from, s32 c )
+    {
+      char* ptr = capacity > MIN_CAPACITY ? dataPtr : inlineData;
+      memcpy( ptr, from, c );
+    }
+
+    INLINE void _internal_copy( char* from, s32 c )
+    {
+      char* ptr = capacity > MIN_CAPACITY ? dataPtr : inlineData;
+      memcpy( ptr, from, c );
+    }
+  public:
+    INLINE char const* cstr() const { return capacity > MIN_CAPACITY ? dataPtr : inlineData; }
+    INLINE char* cstr() { return capacity > MIN_CAPACITY ? dataPtr : inlineData; }
+
+    constexpr static s32 MIN_CAPACITY = 16;
     String()
-      : Array<char>( nullptr )
+      : allocator( nullptr )
+      , dataPtr( 0 )
+      , count( 0 )
+      , capacity( MIN_CAPACITY )
     {}
 
+    String( memory::Allocator* _allocator )
+      : allocator( _allocator )
+      , dataPtr( 0 )
+      , count( 0 )
+      , capacity( MIN_CAPACITY )
+    {}
+
+    String( s32 _capacity )
+      : allocator( nullptr )
+      , count( 0 )
+      , capacity( max( _capacity, MIN_CAPACITY ) )
+    {
+      capacity = max( _capacity, MIN_CAPACITY );
+      _internal_allocate( capacity );
+    }
+
+    String( memory::Allocator* _allocator, s32 _capacity )
+      : allocator( _allocator )
+      , count( 0 )
+    {
+      capacity = max( _capacity, MIN_CAPACITY );
+      _internal_allocate( capacity );
+    }
+
     String( char const* str )
-      : Array<char>( nullptr )
+      : allocator( nullptr )
     {
-      count = capacity = string_length( str ) + 1;
-      data = (char*) memory::allocate( allocator, capacity );
-      memcpy( data, str, count * sizeof( char ) );
+      count = string_length( str ) + 1;
+      capacity = max( count, MIN_CAPACITY );
+      _internal_allocate( capacity );
+      _internal_copy_const( str, capacity );
     }
 
-
-    void insert( iterator at, char const* str )
+    String( memory::Allocator* _allocator, char const* str )
+      : allocator( _allocator )
     {
-      return Array<char>::insert( at, str, string_length( str ) + 1 );
+      count = string_length( str ) + 1;
+      capacity = max( count, MIN_CAPACITY );
+      _internal_allocate( capacity );
+      _internal_copy_const( str, capacity );
     }
 
-    String& operator =( char const* str )
+    String( String const& str )
+      : allocator( nullptr )
     {
-      if ( data )
-      {
-        memory::free( allocator, data, capacity * sizeof( char ) );
-      }
+      count = str.count;
+      capacity = max( count, MIN_CAPACITY );
+      _internal_allocate( capacity );
+      _internal_copy_const( str.cstr(), capacity );
+    }
 
-      count = capacity = string_length( str ) + 1;
-      data = (char*) memory::allocate( allocator, capacity * sizeof( char ) );
-      memcpy( data, str, count * sizeof( char ) );
+    String( memory::Allocator* _allocator, String const& str )
+      : allocator( _allocator )
+    {
+      count = str.count;
+      capacity = max( count, MIN_CAPACITY );
+      _internal_allocate( capacity );
+      _internal_copy_const( str.cstr(), capacity );
+    }
+
+    String& operator=( char const* str )
+    {
+      count = string_length( str ) + 1;
+      _internal_reallocate_no_move( count );
+      _internal_copy_const( str, capacity );
       return *this;
     }
 
-    bool operator ==( String const& other ) { return string_match( this->data, other.data ); }
+    String& operator=( String const& str )
+    {
+      count = str.count;
+      _internal_reallocate_no_move( str.count );
+      _internal_copy_const( str.cstr(), capacity );
+      return *this;
+    }
+
+    String& operator+=( char const* str )
+    {
+      BREAK;
+    }
+
+    String& operator+=( String const& str )
+    {
+      return *this += str.cstr();
+    }
+
+    ~String()
+    {
+      _internal_try_free();
+    }
+
+    bool operator ==( String const& other ) const { return string_match( this->cstr(), other.cstr() ); }
+
+    memory::Allocator* allocator;
+  private:
+    union
+    {
+      char* dataPtr;
+      char inlineData[MIN_CAPACITY];
+    };
+  public:
+    s32 count;
+    s32 capacity;
+    void reserve( s32 newCapacity )
+    {
+      if ( newCapacity > MIN_CAPACITY )
+      {
+        char* newStr = (char*) memory::allocate( allocator, newCapacity );
+        if ( capacity > MIN_CAPACITY )
+        {
+          memcpy( newStr, dataPtr, min( newCapacity, count ) );
+          memory::free( allocator, dataPtr, capacity );
+        }
+        else
+        {
+          memcpy( newStr, inlineData, count );
+        }
+
+        capacity = newCapacity;
+        dataPtr = newStr;
+      }
+      else
+      {
+        if ( capacity > MIN_CAPACITY )
+        {
+          char* oldData = dataPtr;
+          memcpy( inlineData, oldData, newCapacity );
+          memory::free( allocator, oldData, capacity );
+          capacity = MIN_CAPACITY;
+        }
+      }
+    }
   };
+
+  template<> INLINE s32 string_format_internal<String*>( char* destination, s32 capacity, String* value ) { return string_format_internal( destination, capacity, value->data() ); }
+  template<> INLINE s32 string_format_internal<String const*>( char* destination, s32 capacity, String const* value ) { return string_format_internal( destination, capacity, value->data() ); }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Map ///////////////////////////////////////////////////////////////////////////////////////
@@ -202,6 +411,16 @@ namespace bse
       : allocator( _allocator )
       , pairs( _allocator )
     {}
+
+    Map( Map<K, V> const& map )
+      : allocator( nullptr )
+      , pairs( map.pairs )
+    {}
+
+    ~Map()
+    {
+      pairs.~Array<KeyValuePair>();
+    }
 
     struct KeyValuePair
     {
@@ -230,7 +449,8 @@ namespace bse
           return pair.value;
         }
       }
-      return pairs.push( KeyValuePair { k, V{} } ).value;
+      return V {};
+      //return pairs.push( KeyValuePair { k, V{} } ).value;
     }
 
     memory::Allocator* allocator;
@@ -256,13 +476,13 @@ namespace bse
   {
     if ( count == capacity )
     {
-      s64 newCapacity = s64( capacity ) * 2;
+      s64 newCapacity = s64( max( 1, capacity ) ) * 2;
       if ( newCapacity > S32_MAX )
       {
         BREAK;
       }
       data = (T*) memory::reallocate( allocator, data, capacity * sizeof( T ), newCapacity * sizeof( T ) );
-      capacity = newCapacity;
+      capacity = s32( newCapacity );
     }
     return (data[count++] = value);
   }

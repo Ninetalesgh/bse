@@ -13,9 +13,12 @@ namespace bse
 
     enum class WriteFlags : u32
     {
-      OVERWRITE_OR_CREATE_NEW = 0x0,
-      APPEND_OR_FAIL = 0x1,
-      OVERWRITE_OR_FAIL = 0x2,
+      //Overwrite an existing file or create a new file if none exists
+      OverwriteOrCreateNew = 0x0,
+      //Append an existing file or fail if none exists
+      AppendOrFail = 0x1,
+      //Overwrite an existing file or fail if none exists
+      OverwriteOrFail = 0x2,
     };
   };
 };

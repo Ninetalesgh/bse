@@ -58,8 +58,8 @@ namespace bse
     platformcallback::debug_log_fn* debug_log;
     ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
     platformcallback::allocate_virtual_memory_fn* allocate_virtual_memory;
-    platformcallback::free_virtual_memory_fn* free_virtual_memory;
     platformcallback::decommit_virtual_memory_fn* decommit_virtual_memory;
+    platformcallback::free_virtual_memory_fn* free_virtual_memory;
     ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
     platformcallback::get_file_info_fn* get_file_info;
     platformcallback::load_file_part_fn* load_file_part;
@@ -110,7 +110,6 @@ namespace bse
 
   struct PlatformInitParams
   {
-    char const* exePath;
     void* programHandle;
     Platform* platform;
     bool shutdownAfterInitializing;

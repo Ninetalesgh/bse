@@ -218,7 +218,7 @@ namespace bse
 
                 while ( true )
                 {
-                  string_format( testName, sizeof( testName ), uniformName.c_str(), "[", uniformIndex++, "]" );
+                  //    string_format( testName, sizeof( testName ), uniformName.c_str(), "[", uniformIndex++, "]" );
                   s32 uniformLocation = glGetUniformLocation( result.id, testName );
                   if ( uniformLocation < 0 )
                   {

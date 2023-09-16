@@ -108,7 +108,7 @@ namespace win64
 
   void* allocate_virtual_memory( s64 size )
   {
-    log_info( "Reserving ", size, " Bytes of virtual Memory." );
+    debug_log_info( "Reserving ", size, " Bytes of virtual Memory." );
     // return malloc( size );
     return VirtualAlloc( 0, (s64) size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE );
   }
@@ -119,7 +119,6 @@ namespace win64
     {
       u32 errormsg = GetLastError();
       log_warning( errormsg );
-      log_error( "test" );
       BREAK;
     }
   }
@@ -142,8 +141,8 @@ namespace win64
   bool get_file_info( char const* filePath, bse::file::Info* out_fileInfo )
   {
     bool result = false;
-    wchar_t wideChars[MAX_BSE_PATH];
-    utf8_to_wchar( filePath, wideChars, MAX_BSE_PATH );
+    wchar_t wideChars[BSE_PATH_MAX];
+    utf8_to_wchar( filePath, wideChars, BSE_PATH_MAX );
 
     _WIN32_FIND_DATAW findData;
     HANDLE findHandle = FindFirstFileW( wideChars, &findData );
@@ -174,8 +173,8 @@ namespace win64
     bool result = false;
     if ( targetBuffer )
     {
-      wchar_t wideChars[MAX_BSE_PATH];
-      utf8_to_wchar( filePath, wideChars, MAX_BSE_PATH );
+      wchar_t wideChars[BSE_PATH_MAX];
+      utf8_to_wchar( filePath, wideChars, BSE_PATH_MAX );
       HANDLE fileHandle = CreateFileW( wideChars,
                                        GENERIC_READ,
                                        FILE_SHARE_READ, 0,
@@ -200,12 +199,12 @@ namespace win64
   bool write_file( char const* filePath, void const* data, u32 size, bse::file::WriteFlags flags )
   {
     bool result = true;
-    wchar_t wideChars[MAX_BSE_PATH];
-    utf8_to_wchar( filePath, wideChars, MAX_BSE_PATH );
+    wchar_t wideChars[BSE_PATH_MAX];
+    utf8_to_wchar( filePath, wideChars, BSE_PATH_MAX );
     HANDLE fileHandle = nullptr;
 
-    DWORD writeMode = (flags == bse::file::WriteFlags::APPEND_OR_FAIL) ? FILE_APPEND_DATA : GENERIC_WRITE;
-    DWORD createMode = (flags == bse::file::WriteFlags::OVERWRITE_OR_CREATE_NEW) ? CREATE_ALWAYS : OPEN_EXISTING;
+    DWORD writeMode = (flags == bse::file::WriteFlags::AppendOrFail) ? FILE_APPEND_DATA : GENERIC_WRITE;
+    DWORD createMode = (flags == bse::file::WriteFlags::OverwriteOrCreateNew) ? CREATE_ALWAYS : OPEN_EXISTING;
 
     fileHandle = CreateFileW( wideChars, writeMode, 0, 0, createMode, FILE_ATTRIBUTE_NORMAL, 0 );
 
@@ -245,8 +244,8 @@ namespace win64
 
   bool create_directory( char const* directoryPath )
   {
-    wchar_t wideChars[MAX_BSE_PATH];
-    utf8_to_wchar( directoryPath, wideChars, MAX_BSE_PATH );
+    wchar_t wideChars[BSE_PATH_MAX];
+    utf8_to_wchar( directoryPath, wideChars, BSE_PATH_MAX );
 
     return CreateDirectoryW( wideChars, NULL );
   }

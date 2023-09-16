@@ -101,7 +101,7 @@ set code_path=..\%code_path%
 rem go back one more for the debug/development/release subdirectories
 set code_path=..\%code_path%
 
-set compiler_options=/I %code_path% /GR- /EHa- /FC /MT /nologo /volatile:iso /W4 /wd4068 /wd4100 /wd4201 /wd4701 /wd4189
+set compiler_options=/I %code_path% /GR- /EHa- /FC /MT /nologo /volatile:iso /W4 /wd4068 /wd4100 /wd4201 /wd4701 /wd4189 /wd4530
 IF NOT %app_path%=="" set compiler_options=%compiler_options% /DBSE_BUILD_APP_PATH=%app_path%
 set linker_options=/link /opt:ref /incremental:no
 set app_exports=/EXPORT:core_initialize_internal /EXPORT:core_on_reload_internal /EXPORT:core_tick_internal

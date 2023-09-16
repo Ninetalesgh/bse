@@ -2,6 +2,8 @@
 
 #include <memory>
 
+
+
 namespace bse
 {
   namespace memory
@@ -254,11 +256,10 @@ namespace bse
 
     Arena* new_arena( Allocator* parent, s64 size, AllocatorPolicy const& policy )
     {
-      Allocator virtualMemory;
       s64 allocationSize = sizeof( Arena ) + size;
       if ( parent == nullptr )
       {
-        parent = &virtualMemory;
+        parent = &VirtualMemoryAllocator;
         //round up to page size, since it would be wasted otherwise
         s64 roundUp = difference_to_multiple_of( allocationSize, platform->info.virtualMemoryPageSize );
         allocationSize += roundUp;
@@ -339,14 +340,13 @@ namespace bse
 
     MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity, AllocatorPolicy const& policy )
     {
-      Allocator virtualMemory;
       //64 byte aligned should suffice for any crazy business
       s64 const poolSize = round_up_to_multiple_of( sizeof( MonotonicPool ), 64 );
 
       s64 allocationSize = poolSize + size;
       if ( parent == nullptr )
       {
-        parent = &virtualMemory;
+        parent = &VirtualMemoryAllocator;
         //round up to page size, since it would be wasted otherwise
         s64 roundUp = difference_to_multiple_of( allocationSize, platform->info.virtualMemoryPageSize );
         allocationSize += roundUp;
@@ -432,7 +432,6 @@ namespace bse
 
     Multipool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity, AllocatorPolicy const& policy )
     {
-      Allocator virtualMemory;
       s64 const poolCount = 1 + ((maxPoolSize - 1) / poolSizeGranularity);
       s64 const allocationSize = sizeof( Multipool ) + poolCount * sizeofptr;
 
@@ -440,7 +439,7 @@ namespace bse
       s64 fillerPoolSize = 0;
       if ( parent == nullptr )
       {
-        parent = &virtualMemory;
+        parent = &VirtualMemoryAllocator;
         //round up to page size, since it would be wasted otherwise
         fillerAllocationSize = difference_to_multiple_of( allocationSize, platform->info.virtualMemoryPageSize );
         fillerPoolSize = fillerAllocationSize - sizeof( MonotonicPool );

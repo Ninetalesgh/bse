@@ -6,7 +6,6 @@
 #  define BSE_BUILD_DEBUG_DEVELOPMENT
 #endif
 
-
 #if defined(_MSC_VER)
 #  define INLINE __forceinline
 #else
@@ -15,6 +14,8 @@
 #endif
 
 #define array_count(array) (sizeof(array) / (sizeof((array)[0])))
+
+#define BSE_STACK_BUFFER_SIZE 16384
 
 #define _DEFINE_ENUM_OPERATORS_INTERNAL(enumtypename, basictype)\
 INLINE enumtypename  operator |  ( enumtypename a, enumtypename b ) { return enumtypename( basictype( a ) | basictype( b ) ); }\

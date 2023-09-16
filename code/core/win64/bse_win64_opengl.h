@@ -321,8 +321,8 @@ namespace win64
   WindowContext create_window( WindowInitParameter const& parameter )
   {
     WindowContext resultWindow {};
-    wchar_t nameBuffer[MAX_BSE_PATH] = {};
-    utf8_to_wchar( parameter.windowName, nameBuffer, MAX_BSE_PATH );
+    wchar_t nameBuffer[BSE_PATH_MAX] = {};
+    utf8_to_wchar( parameter.windowName, nameBuffer, BSE_PATH_MAX );
     WNDCLASSEX const& wndClass = parameter.wndClass;
 
     if ( RegisterClassEx( &wndClass ) )

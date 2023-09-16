@@ -34,7 +34,7 @@
 
 //#include "bse_win64_opengl.h"
 
-constexpr s32 MAX_BSE_PATH = 1024;
+constexpr s32 BSE_PATH_MAX = 1024;
 namespace win64
 {
   s32 utf8_to_wchar( char const* utf8String, wchar_t* out_wcharString, s32 wcharLengthMax )
@@ -53,8 +53,8 @@ namespace win64
 
   s32 get_exe_path( char* out_exePath, s32 exePathLengthMax )
   {
-    wchar_t wideChars[MAX_BSE_PATH];
-    s32 filePathLength = GetModuleFileNameW( 0, wideChars, MAX_BSE_PATH );
+    wchar_t wideChars[BSE_PATH_MAX];
+    s32 filePathLength = GetModuleFileNameW( 0, wideChars, BSE_PATH_MAX );
     assert( filePathLength <= exePathLengthMax );
     return wchar_to_utf8( wideChars, out_exePath, exePathLengthMax );
   }

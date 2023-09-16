@@ -133,79 +133,55 @@ void initialize( bse::PlatformInitParams* initParameters )
   float4 p3 = testcam * p;
 
   float a = p.x;
-
-
 }
-
-static VFS tester;
 
 void on_reload()
 {
-  // VFS* test = new_vfs( nullptr );
+  using namespace bse;
 
-  // delete_vfs( test );
-   //your on reload goes here, relevant for hot reloading
+  String t = "hello";
+  t = "ayy";
+  Array<String> strings = { "ok", "nah" };
+
+  Array<Map<String, s32>> wha( 4 );
+  wha.push();
+
+  wha[0]["ok"] = 1;
+  (wha[0])["ok"] = 2;
+
+  Map<String, s32> bla;
+  wha.push( bla );
+  wha[1]["NO"] = 5;
+
+  wha[1]["NO"] = 3;
+
+  // wha[0]["Test"] = 3;
+
+   // Array<String> strings = { "ok", "nah" };
+   // Array<int> ints = { 3, 4, 5, 6 };
+
+   // Array<int> ints2 = ints;
+
+    // char const* a = "teaparty12345678";
+    // String tea = a;
+    // tea = "no";
+    // u32 si = sizeof( String );
+
+    // Array<String> bla { "c:\\test\\", "d:/test2/" };
+    // VirtualFileSystem* blau = new_virtual_file_system( nullptr, bla );
+    // VFS* test = new_vfs( nullptr );
+
+    // delete_vfs( test );
+     //your on reload goes here, relevant for hot reloading
 }
 
+static bse::Array<bse::String> testiuee;
 
-#include <vector>
-#include <string>
-#include <map>
 
-static u64 bsetotal = 0;
-static u64 stdtotal = 0;
 void tick()
 {
-  u64 countbse;
-  u64 countstd;
 
-  {
-    PROFILE_SCOPE( countbse );
-    {
-      bse::String test = "oh";
-      bse::String test1 = "oh";
-      bse::String test2 = "oh";
-      bse::String test3 = "oh";
-      bse::String test4 = "oh";
-      bse::String test5 = "oh";
-      bse::String test6 = "oh";
-      bse::String test7 = "oh";
-      bse::String test8 = "oh";
-      test = "oh2";
-    }
 
-    {
-      bse::Map<int, char const*> testmap;
-    }
 
-    {
-      bse::Array<int> blubb = { 1,2,3 };
-    }
-  }
-
-  {
-    PROFILE_SCOPE( countstd );
-    {
-      std::map<int, char const*> poop;
-    }
-    {
-      std::vector<int> poop;
-    }
-    {
-      std::string test = "oh";
-      bse::String test1 = "oh";
-      bse::String test2 = "oh";
-      bse::String test3 = "oh";
-      bse::String test4 = "oh";
-      bse::String test5 = "oh";
-      bse::String test6 = "oh";
-      bse::String test7 = "oh";
-      bse::String test8 = "oh";
-      test = "oh2";
-    }
-  }
-
-  bsetotal += countbse;
-  stdtotal += countstd;
 }
 

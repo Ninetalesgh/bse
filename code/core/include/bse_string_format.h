@@ -42,43 +42,35 @@ namespace bse
 
 
   //string_format returns the number of bytes written
-  template<bool internal, typename Arg> INLINE s32 string_format( char* destination, s32 capacity, Arg value );
+  template<typename Arg> INLINE s32 string_format_internal( char* destination, s32 capacity, Arg value );
   template<typename Arg, typename... Args>
   INLINE s32 string_format( char* destination, s32 capacity, Arg arg, Args... args )
   {
-    s32 bytesWritten = string_format<true, Arg>( destination, capacity, arg );
-    bytesWritten += string_format<Args...>( destination + bytesWritten, capacity - bytesWritten, args... );
+    s32 bytesWritten = string_format_internal( destination, capacity, arg );
+    bytesWritten += string_format( destination + bytesWritten, capacity - bytesWritten, args... );
 
     return bytesWritten;
   }
 
-  //TODO testing this for ease of use in string_format
-  struct StringViewSection
-  {
-    char const* begin;
-    char const* end;
-  };
-
-  template<> INLINE s32 string_format<true, StringViewSection>( char* destination, s32 capacity, StringViewSection value );
-  template<> INLINE s32 string_format<true, char const*>( char* destination, s32 capacity, char const* value );
-  template<> INLINE s32 string_format<true, char*>( char* destination, s32 capacity, char* value );
-  template<> INLINE s32 string_format<true, u64>( char* destination, s32 capacity, u64 value );
-  template<> INLINE s32 string_format<true, u32>( char* destination, s32 capacity, u32 value );
-  template<> INLINE s32 string_format<true, u16>( char* destination, s32 capacity, u16 value );
-  template<> INLINE s32 string_format<true, u8>( char* destination, s32 capacity, u8 value );
-  template<> INLINE s32 string_format<true, s64>( char* destination, s32 capacity, s64 value );
-  template<> INLINE s32 string_format<true, s32>( char* destination, s32 capacity, s32 value );
-  template<> INLINE s32 string_format<true, s16>( char* destination, s32 capacity, s16 value );
-  template<> INLINE s32 string_format<true, s8>( char* destination, s32 capacity, s8 value );
+  template<> s32 string_format_internal<char const*>( char* destination, s32 capacity, char const* value );
+  template<> s32 string_format_internal<char*>( char* destination, s32 capacity, char* value );
+  template<> s32 string_format_internal<u64>( char* destination, s32 capacity, u64 value );
+  template<> s32 string_format_internal<u32>( char* destination, s32 capacity, u32 value );
+  template<> s32 string_format_internal<u16>( char* destination, s32 capacity, u16 value );
+  template<> s32 string_format_internal<u8>( char* destination, s32 capacity, u8 value );
+  template<> s32 string_format_internal<s64>( char* destination, s32 capacity, s64 value );
+  template<> s32 string_format_internal<s32>( char* destination, s32 capacity, s32 value );
+  template<> s32 string_format_internal<s16>( char* destination, s32 capacity, s16 value );
+  template<> s32 string_format_internal<s8>( char* destination, s32 capacity, s8 value );
 
   s32 string_format_float( char* destination, s32 capacity, float value, s32 const postPeriodDigits );
-  template<> INLINE s32 string_format<true, float>( char* destination, s32 capacity, float value ) { return string_format_float( destination, capacity, value, 4 ); }
+  template<> s32 string_format_internal<float>( char* destination, s32 capacity, float value ) { return string_format_float( destination, capacity, value, 4 ); }
 
   template<bool internal, typename Arg> INLINE s32 string_format( char* destination, s32 capacity, Arg value ) { static_assert(0); } //type doesn't exist for formatting yet, sorry :(
 
   template<typename Arg> INLINE s32 string_format( char* destination, s32 capacity, Arg value )
   {
-    s32 bytesWritten = string_format<true, Arg>( destination, capacity, value );
+    s32 bytesWritten = string_format_internal( destination, capacity, value );
 
     bytesWritten = min( capacity - 1, bytesWritten );
     destination[bytesWritten] = '\0'; //end of string_format
@@ -98,23 +90,7 @@ namespace bse
 
 namespace bse
 {
-
-  template<> INLINE s32 string_format<true, StringViewSection>( char* destination, s32 capacity, StringViewSection value )
-  {
-    s32 result = 0;
-    if ( value.begin && value.end )
-    {
-      char const* reader = value.begin;
-      while ( reader != value.end && capacity > result )
-      {
-        *destination++ = *reader++;
-        ++result;
-      }
-    }
-    return result;
-  }
-
-  template<> INLINE s32 string_format<true, char const*>( char* destination, s32 capacity, char const* value )
+  template<> s32 string_format_internal<char const*>( char* destination, s32 capacity, char const* value )
   {
     s32 result = 0;
     if ( value )
@@ -128,12 +104,12 @@ namespace bse
     return result;
   }
 
-  template<> INLINE s32 string_format<true, char*>( char* destination, s32 capacity, char* value )
+  template<> s32 string_format_internal<char*>( char* destination, s32 capacity, char* value )
   {
-    return string_format<true, char const*>( destination, capacity, (char const*) value );
+    return string_format_internal( destination, capacity, (char const*) value );
   }
 
-  template<> INLINE s32 string_format<true, u64>( char* destination, s32 capacity, u64 value )
+  template<> s32 string_format_internal<u64>( char* destination, s32 capacity, u64 value )
   {
     s32 result = 0;
     if ( capacity )
@@ -162,7 +138,7 @@ namespace bse
     return result;
   }
 
-  template<> INLINE s32 string_format<true, u32>( char* destination, s32 capacity, u32 value )
+  template<> s32 string_format_internal<u32>( char* destination, s32 capacity, u32 value )
   {
     s32 result = 0;
     if ( capacity )
@@ -191,7 +167,7 @@ namespace bse
     return result;
   }
 
-  template<> INLINE s32 string_format<true, u16>( char* destination, s32 capacity, u16 value )
+  template<> s32 string_format_internal<u16>( char* destination, s32 capacity, u16 value )
   {
     s32 result = 0;
     if ( capacity )
@@ -221,7 +197,7 @@ namespace bse
   }
 
 
-  template<> INLINE s32 string_format<true, u8>( char* destination, s32 capacity, u8 value )
+  template<> s32 string_format_internal<u8>( char* destination, s32 capacity, u8 value )
   {
     s32 result = 0;
     if ( capacity )
@@ -250,7 +226,7 @@ namespace bse
     return result;
   }
 
-  template<> INLINE s32 string_format<true, s64>( char* destination, s32 capacity, s64 value )
+  template<> s32 string_format_internal<s64>( char* destination, s32 capacity, s64 value )
   {
     s32 result = 0;
     if ( value >> ((sizeof( s64 ) * 8) - 1) && capacity >= 0 )
@@ -259,10 +235,10 @@ namespace bse
       value = -value;
       ++result;
     }
-    return result + string_format<true, u64>( destination, capacity - result, u64( value ) );
+    return result + string_format_internal( destination, capacity - result, u64( value ) );
   }
 
-  template<> INLINE s32 string_format<true, s32>( char* destination, s32 capacity, s32 value )
+  template<> s32 string_format_internal<s32>( char* destination, s32 capacity, s32 value )
   {
     s32 result = 0;
     if ( value >> ((sizeof( s32 ) * 8) - 1) && capacity >= 0 )
@@ -271,10 +247,10 @@ namespace bse
       value = -value;
       ++result;
     }
-    return result + string_format<true, u32>( destination, capacity - result, u32( value ) );
+    return result + string_format_internal( destination, capacity - result, u32( value ) );
   }
 
-  template<> INLINE s32 string_format<true, s16>( char* destination, s32 capacity, s16 value )
+  template<> s32 string_format_internal<s16>( char* destination, s32 capacity, s16 value )
   {
     s32 result = 0;
     if ( value >> ((sizeof( s16 ) * 8) - 1) && capacity >= 0 )
@@ -283,10 +259,10 @@ namespace bse
       value = -value;
       ++result;
     }
-    return result + string_format<true, u16>( destination, capacity - result, u16( value ) );
+    return result + string_format_internal( destination, capacity - result, u16( value ) );
   }
 
-  template<> INLINE s32 string_format<true, s8>( char* destination, s32 capacity, s8 value )
+  template<> s32 string_format_internal<s8>( char* destination, s32 capacity, s8 value )
   {
     s32 result = 0;
     if ( value >> ((sizeof( s8 ) * 8) - 1) && capacity >= 0 )
@@ -295,7 +271,7 @@ namespace bse
       value = -value;
       ++result;
     }
-    return result + string_format<true, u8>( destination, capacity - result, u8( value ) );
+    return result + string_format_internal( destination, capacity - result, u8( value ) );
   }
 
   s32 string_format_float( char* destination, s32 capacity, float value, s32 const postPeriodDigits )
@@ -319,12 +295,12 @@ namespace bse
 
       if ( !(bits << 1) )
       {
-        return result + string_format<true, char const*>( destination, capacity - result, "0.0" );
+        return result + string_format_internal( destination, capacity - result, "0.0" );
       }
 
       if ( exponent == 128 )
       {
-        return result + string_format<true, char const*>( destination, capacity - result, "NaN" );
+        return result + string_format_internal( destination, capacity - result, "NaN" );
       }
     }
 
@@ -333,11 +309,11 @@ namespace bse
     constexpr s32 EXPONENT_LIMIT_MAX = 23;
     if ( exponent > EXPONENT_LIMIT_MAX )
     {
-      return result + string_format<true, char const*>( destination, capacity - result, "bigfloat" );
+      return result + string_format_internal( destination, capacity - result, "bigfloat" );
     }
     else if ( exponent < EXPONENT_LIMIT_MIN )
     {
-      return result + string_format<true, char const*>( destination, capacity - result, "smlfloat" );
+      return result + string_format_internal( destination, capacity - result, "smlfloat" );
     }
     else
     {
@@ -402,7 +378,7 @@ namespace bse
 
       if ( whole )
       {
-        s32 wholeResult = string_format<true, u32>( destination, capacity - result, whole );
+        s32 wholeResult = string_format_internal( destination, capacity - result, whole );
         destination += wholeResult;
         result += wholeResult;
       }
@@ -418,7 +394,7 @@ namespace bse
         ++result;
       }
 
-      return result + string_format<true, char const*>( destination, capacity - result, tmpTo );
+      return result + string_format_internal( destination, capacity - result, tmpTo );
     }
   }
 
@@ -607,8 +583,6 @@ namespace bse
 
     return nullptr;
   }
-
-
 
   s32 string_get_unicode_codepoint( char const* utf8String, s32* out_extraBytes /*= nullptr*/ )
   {

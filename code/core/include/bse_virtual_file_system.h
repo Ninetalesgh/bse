@@ -5,11 +5,16 @@
 
 namespace bse
 {
-  struct VFS;
+  struct VirtualFileSystem;
+
+  [[nodiscard]] VirtualFileSystem* new_virtual_file_system( memory::Allocator* allocator );
+  [[nodiscard]] VirtualFileSystem* new_virtual_file_system( memory::Allocator* allocator, Array<String> const& mountedPaths );
+  void delete_virtual_file_system( VirtualFileSystem* );
 
 
-  [[nodiscard]] VFS* new_vfs( memory::Allocator* allocator );
-  void delete_vfs( VFS* );
+
+
+
 
 
   using MountPathID = s32;
@@ -39,32 +44,5 @@ namespace bse
 
   // bool write_file( FileSystem*, char const* path, void const* data, u32 size, MountPathID mountPathID = 0 );
   // bool append_file( FileSystem*, char const* path, void const* data, u32 size, MountPathID mountPathID = 0 );
-
-};
-
-
-
-namespace bse
-{
-  struct VFS
-  {
-    memory::Allocator* allocator;
-    Array<char> mountedPaths;
-  };
-
-  VFS* new_vfs( memory::Allocator* allocator )
-  {
-    static VFS tester;
-    return &tester;
-  }
-
-  void delete_vfs( VFS* vfs )
-  {
-    vfs->~VFS();
-    //memory::free( vfs->allocator, vfs );
-  }
-
-
-
 
 };

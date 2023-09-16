@@ -9,7 +9,10 @@ namespace bse
     {
       s32 const MAX_DEBUG_MESSAGE_LENGTH = 8192;
       char debugBuffer[MAX_DEBUG_MESSAGE_LENGTH];
-      s32 bytesToWrite = bse::string_format( debugBuffer, MAX_DEBUG_MESSAGE_LENGTH, args... ) - 1 /* ommit null */;
+      s32 bytesToWrite = 0;
+
+      // s32 bytesToWrite = bse::string_format( debugBuffer, MAX_DEBUG_MESSAGE_LENGTH, args... ) - 1 /* ommit null */;
+
       if ( bytesToWrite > 0 )
       {
         if ( debugBuffer[bytesToWrite - 1] != '\n' )
