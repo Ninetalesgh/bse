@@ -141,7 +141,7 @@ void on_reload()
 
   String t = "hello";
   t = "ayy";
-  Array<String> strings = { "ok", "nah" };
+  Array<String> strings = { "C:\\Test\\", "D:/bse/" };
 
   Array<Map<String, s32>> wha( 4 );
   wha.push();

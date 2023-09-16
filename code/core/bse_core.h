@@ -80,17 +80,27 @@ namespace bse
     struct DefaultSystems
     {
       memory::Multipool* allocator;
+
+      // VirtualFileSystem vfs;
+
+       //ThreadPool for worker threads and keeping track of ids
+       //TODO maybe this means every thread gets its own allocator to keep em separate
+       //overhead of multipools * threadcount might be ok
+
+       //Font
+
     } default;
 
     struct PlatformInfo
     {
-      char const* executablePath;
+      String executablePath;
       s32 processorCount;
       ProcessorArchitecture processorArchitecture;
       u32 virtualMemoryPageSize;
       u32 virtualMemoryAllocationGranularity;
     } info;
 
+    //this memory gets invalidated frequently I suppose TODO
     struct FrameInfo
     {
       u64 frameIndex;

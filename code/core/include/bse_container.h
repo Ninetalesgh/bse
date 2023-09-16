@@ -22,7 +22,10 @@ namespace bse
     T& push() { return push( T() ); }
     T& push( T const& value );
     T const& pop();
-    void reserve( s32 newCapacity );
+    s32 reserve( s32 newCapacity );
+    s32 resize( s32 newCount );
+    void free_unsafe();
+    s32 set_count_to_capacity() { count = capacity; return count; }
 
     void remove( iterator const& at );
     T& insert( iterator const& at, T const& value );
@@ -393,8 +396,8 @@ namespace bse
     }
   };
 
-  template<> INLINE s32 string_format_internal<String*>( char* destination, s32 capacity, String* value ) { return string_format_internal( destination, capacity, value->data() ); }
-  template<> INLINE s32 string_format_internal<String const*>( char* destination, s32 capacity, String const* value ) { return string_format_internal( destination, capacity, value->data() ); }
+  template<> INLINE s32 string_format_internal<String*>( char* destination, s32 capacity, String* value ) { return string_format_internal( destination, capacity, value->cstr() ); }
+  template<> INLINE s32 string_format_internal<String const*>( char* destination, s32 capacity, String const* value ) { return string_format_internal( destination, capacity, value->cstr() ); }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Map ///////////////////////////////////////////////////////////////////////////////////////
@@ -488,13 +491,30 @@ namespace bse
   }
 
   template<typename T> INLINE T const& Array<T>::pop() { return data[--count]; }
-  template<typename T> void Array<T>::reserve( s32 newCapacity )
+
+  template<typename T> s32 Array<T>::reserve( s32 newCapacity )
   {
     data = (T*) memory::reallocate( allocator, data, capacity * sizeof( T ), newCapacity * sizeof( T ) );
     count = min( count, newCapacity );
     capacity = newCapacity;
   }
 
+  template<typename T> s32 Array<T>::resize( s32 newCount )
+  {
+    reserve( newCount );
+    count = newCount;
+  }
+
+  template<typename T> void Array<T>::free_unsafe()
+  {
+    if ( data )
+    {
+      memory::free( allocator, data, s64( capacity * sizeof( T ) ) );
+      data = nullptr;
+      count = 0;
+      capacity = 0;
+    }
+  }
 
   template<typename T> void Array<T>::remove( iterator const& at )
   {

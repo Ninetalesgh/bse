@@ -25,6 +25,9 @@ namespace bse
   //returns destination
   char* string_copy( char* destination, char const* origin, s32 size );
 
+  //replaces all of target with replacement
+  void string_replace_char( char* str, char target, char replacement );
+
   //returns pointer to where subString begins in string
   //returns nullptr if the subString is not part of string
   char* string_contains( char* string, char const* subString );
@@ -452,6 +455,18 @@ namespace bse
       destination[i] = origin[i];
     }
     return destination;
+  }
+
+  void string_replace_char( char* str, char target, char replacement )
+  {
+    while ( *str != '\0' )
+    {
+      if ( *str == target )
+      {
+        *str = replacement;
+      }
+      ++str;
+    }
   }
 
 

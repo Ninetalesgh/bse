@@ -43,15 +43,8 @@ int bse_main( int argc, char** argv )
 void bse_win64_init_core();
 int bse_init( int argc, char** argv )
 {
+  char stack[BSE_STACK_BUFFER_MEDIUM];
   s32 result = 1;
-  {
-    SYSTEM_INFO systemInfo {};
-    GetSystemInfo( &systemInfo );
-    bse::platform->info.processorCount = systemInfo.dwNumberOfProcessors;
-    bse::platform->info.virtualMemoryAllocationGranularity = systemInfo.dwAllocationGranularity;
-    bse::platform->info.virtualMemoryPageSize = systemInfo.dwPageSize;
-    bse::platform->info.processorArchitecture = bse::ProcessorArchitecture( systemInfo.wProcessorArchitecture );
-  }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Init Callbacks so we are able to use debug logs and the like //////////////////////////////
@@ -60,7 +53,28 @@ int bse_init( int argc, char** argv )
   win64::register_platform_callbacks();
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
-  ////////// Init Timer  ///////////////////////////////////////////////////////////////////////////////
+  ////////// Init Platform /////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  {
+    SYSTEM_INFO systemInfo {};
+    GetSystemInfo( &systemInfo );
+    bse::platform->info.processorCount = systemInfo.dwNumberOfProcessors;
+    bse::platform->info.virtualMemoryAllocationGranularity = systemInfo.dwAllocationGranularity;
+    bse::platform->info.virtualMemoryPageSize = systemInfo.dwPageSize;
+    bse::platform->info.processorArchitecture = bse::ProcessorArchitecture( systemInfo.wProcessorArchitecture );
+
+    bse::platform->default.allocator = bse::memory::new_multipool( nullptr, bse::platform->info.virtualMemoryPageSize - sizeof( bse::memory::Multipool ), 16 );
+
+    win64::get_exe_path( stack, BSE_STACK_BUFFER_MEDIUM );
+    bse::string_replace_char( stack, '\\', '/' );
+    bse::platform->info.executablePath = stack;
+
+    //bse::platform->default.vfs;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init Timer ////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   result = QueryPerformanceFrequency( (LARGE_INTEGER*) &win64::global::performanceCounterFrequency );

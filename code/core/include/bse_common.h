@@ -15,7 +15,9 @@
 
 #define array_count(array) (sizeof(array) / (sizeof((array)[0])))
 
-#define BSE_STACK_BUFFER_SIZE 16384
+#define BSE_STACK_BUFFER_SMALL 4096
+#define BSE_STACK_BUFFER_MEDIUM 8192
+#define BSE_STACK_BUFFER_LARGE 16384
 
 #define _DEFINE_ENUM_OPERATORS_INTERNAL(enumtypename, basictype)\
 INLINE enumtypename  operator |  ( enumtypename a, enumtypename b ) { return enumtypename( basictype( a ) | basictype( b ) ); }\

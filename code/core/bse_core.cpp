@@ -15,7 +15,6 @@ namespace bse
     platformParameters->window.position = int2 { -platformParameters->window.size.x - 200, 200 };
 
     platform = pf;
-    platform->default.allocator = memory::new_multipool( nullptr, platform->info.virtualMemoryPageSize - sizeof( memory::Multipool ), 16 );
     initialize( platformParameters );
   }
 

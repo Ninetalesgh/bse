@@ -40,14 +40,6 @@ namespace bse
       atomic32 isPaused;
     };
 
-    struct ThreadInfo
-    {
-      char const* name;
-      u32 id;
-      atomic32 requestPause;
-      atomic32 isPaused;
-    };
-
     struct LockingObject
     {
       LockingObject( atomic32* lock );
@@ -58,14 +50,14 @@ namespace bse
 
     void sleep( s32 milliseconds );
 
-    u32 is_current_thread( ThreadInfo const* );
+    u32 is_current_thread( thread::Context const* );
     u32 get_current_thread_id();
 
-    void request_pause( ThreadInfo* );
-    void request_unpause( ThreadInfo* );
-    void wait_for_thread_to_pause( ThreadInfo* );
-    void pause_thread_if_requested( ThreadInfo* );
-    void pause_thread_if_requested( ThreadInfo*, s32 millisecondsSleepPerPoll );
+    void request_pause( thread::Context* );
+    void request_unpause( thread::Context* );
+    void wait_for_thread_to_pause( thread::Context* );
+    void pause_thread_if_requested( thread::Context* );
+    void pause_thread_if_requested( thread::Context*, s32 millisecondsSleepPerPoll );
 
     void write_barrier();
   };
@@ -95,17 +87,17 @@ namespace bse
       lock->compare_exchange( 0, 1 );
     }
 
-    INLINE void request_pause( ThreadInfo* threadInfo )
+    INLINE void request_pause( thread::Context* threadInfo )
     {
       threadInfo->requestPause.compare_exchange( 1, 0 );
     }
 
-    INLINE void request_unpause( ThreadInfo* threadInfo )
+    INLINE void request_unpause( thread::Context* threadInfo )
     {
       threadInfo->requestPause.compare_exchange( 0, 1 );
     }
 
-    INLINE void wait_for_thread_to_pause( ThreadInfo* threadInfo )
+    INLINE void wait_for_thread_to_pause( thread::Context* threadInfo )
     {
       while ( !threadInfo->isPaused )
       {
@@ -113,7 +105,7 @@ namespace bse
       }
     }
 
-    void pause_thread_if_requested( ThreadInfo* threadInfo, s32 millisecondsSleepPerPoll )
+    void pause_thread_if_requested( thread::Context* threadInfo, s32 millisecondsSleepPerPoll )
     {
       if ( threadInfo->requestPause )
       {
@@ -127,7 +119,7 @@ namespace bse
       }
     }
 
-    INLINE void pause_thread_if_requested( ThreadInfo* threadInfo )
+    INLINE void pause_thread_if_requested( thread::Context* threadInfo )
     {
       pause_thread_if_requested( threadInfo, 0 );
     }
@@ -159,7 +151,7 @@ namespace bse
       _Thrd_sleep( &timer );
     }
 
-    INLINE u32 is_current_thread( ThreadInfo const* threadInfo )
+    INLINE u32 is_current_thread( thread::Context const* threadInfo )
     {
       return threadInfo->id == _Thrd_id();
     }
