@@ -406,6 +406,7 @@ namespace bse
   template<typename K, typename V> struct Map
   {
     //TODO make map something actually useful
+    //TODO implement radix search for strings?
     Map()
       : allocator( nullptr )
       , pairs( nullptr )
@@ -479,7 +480,7 @@ namespace bse
   {
     if ( count == capacity )
     {
-      s64 newCapacity = s64( max( 1, capacity ) ) * 2;
+      s64 newCapacity = s64( max( 4, capacity ) ) * 2;
       if ( newCapacity > S32_MAX )
       {
         BREAK;

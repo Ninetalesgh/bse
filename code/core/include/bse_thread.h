@@ -87,41 +87,41 @@ namespace bse
       lock->compare_exchange( 0, 1 );
     }
 
-    INLINE void request_pause( thread::Context* threadInfo )
+    INLINE void request_pause( thread::Context* threadContext )
     {
-      threadInfo->requestPause.compare_exchange( 1, 0 );
+      threadContext->requestPause.compare_exchange( 1, 0 );
     }
 
-    INLINE void request_unpause( thread::Context* threadInfo )
+    INLINE void request_unpause( thread::Context* threadContext )
     {
-      threadInfo->requestPause.compare_exchange( 0, 1 );
+      threadContext->requestPause.compare_exchange( 0, 1 );
     }
 
-    INLINE void wait_for_thread_to_pause( thread::Context* threadInfo )
+    INLINE void wait_for_thread_to_pause( thread::Context* threadContext )
     {
-      while ( !threadInfo->isPaused )
+      while ( !threadContext->isPaused )
       {
         thread::sleep( 0 );
       }
     }
 
-    void pause_thread_if_requested( thread::Context* threadInfo, s32 millisecondsSleepPerPoll )
+    void pause_thread_if_requested( thread::Context* threadContext, s32 millisecondsSleepPerPoll )
     {
-      if ( threadInfo->requestPause )
+      if ( threadContext->requestPause )
       {
-        threadInfo->isPaused.compare_exchange( 1, 0 );
+        threadContext->isPaused.compare_exchange( 1, 0 );
 
-        while ( threadInfo->requestPause )
+        while ( threadContext->requestPause )
         {
           thread::sleep( millisecondsSleepPerPoll );
         }
-        threadInfo->isPaused.compare_exchange( 0, 1 );
+        threadContext->isPaused.compare_exchange( 0, 1 );
       }
     }
 
-    INLINE void pause_thread_if_requested( thread::Context* threadInfo )
+    INLINE void pause_thread_if_requested( thread::Context* threadContext )
     {
-      pause_thread_if_requested( threadInfo, 0 );
+      pause_thread_if_requested( threadContext, 0 );
     }
   };
 };
@@ -151,9 +151,9 @@ namespace bse
       _Thrd_sleep( &timer );
     }
 
-    INLINE u32 is_current_thread( thread::Context const* threadInfo )
+    INLINE u32 is_current_thread( thread::Context const* threadContext )
     {
-      return threadInfo->id == _Thrd_id();
+      return threadContext->id == _Thrd_id();
     }
 
     INLINE u32 get_current_thread_id()

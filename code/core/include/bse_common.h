@@ -7,11 +7,22 @@
 #endif
 
 #if defined(_MSC_VER)
-#  define INLINE __forceinline
+# define INLINE __forceinline
 #else
-#  define INLINE inline
-//#   define INLINE inline __attribute__((always_inline))
+# define INLINE inline
+//# define INLINE inline __attribute__((always_inline))
 #endif
+
+
+
+#define FUNCTION_NAME __func__
+#define FUNCTION_NAME_NAMESPACE __FUNCTION__
+#if defined(_MSC_VER)
+# define FUNCTION_SIGNATURE __FUNCSIG__
+#else
+# define FUNCTION_SIGNATURE __PRETTY_FUNCTION__
+#endif
+
 
 #define array_count(array) (sizeof(array) / (sizeof((array)[0])))
 

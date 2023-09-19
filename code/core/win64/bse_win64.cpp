@@ -57,6 +57,7 @@ int bse_init( int argc, char** argv )
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   {
+    bse::platform = &win64::global::platform;
     SYSTEM_INFO systemInfo {};
     GetSystemInfo( &systemInfo );
     bse::platform->info.processorCount = systemInfo.dwNumberOfProcessors;
@@ -451,7 +452,7 @@ void bse_win64_init_core()
 
 namespace bse
 {
-  Platform* platform = &win64::global::platform;
+  Platform* platform;
 };
 
 #else

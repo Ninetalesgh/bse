@@ -10,7 +10,12 @@
 
 #define log_info( ... ) bse::debug::log({bse::debug::LogSeverity::INFO, bse::debug::LogOutputType::ALL}, __VA_ARGS__)
 #define log_warning( ... ) bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::ALL}, __VA_ARGS__)
+
+#if defined(BSE_BUILD_DEBUG)
+#define log_error( ... ) { BREAK; bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::ALL}, __VA_ARGS__); }
+#else 
 #define log_error( ... ) bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::ALL}, __VA_ARGS__)
+#endif
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////// Development Logging ///////////////////////////////////////////////////////////////////////
@@ -128,7 +133,7 @@ namespace bse
     ////////// Controlled Crash //////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void controlled_crash( char const* file, char const* line )
+    void controlled_crash( char const* file, s32 line )
     {
       //TODO
       BREAK;

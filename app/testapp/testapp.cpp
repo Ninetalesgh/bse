@@ -135,25 +135,34 @@ void initialize( bse::PlatformInitParams* initParameters )
   float a = p.x;
 }
 
+
+
+
+//static S s;
 void on_reload()
 {
   using namespace bse;
 
-  String t = "hello";
-  t = "ayy";
-  Array<String> strings = { "C:\\Test\\", "D:/bse/" };
+  // T1 test;
 
-  Array<Map<String, s32>> wha( 4 );
-  wha.push();
+  {
+  }
+  threadtest();
+  // String t = "hello";
+  // t = "ayy";
+  // Array<String> strings = { "C:\\Test\\", "D:/bse/" };
 
-  wha[0]["ok"] = 1;
-  (wha[0])["ok"] = 2;
+  // Array<Map<String, s32>> wha( 4 );
+  // wha.push();
 
-  Map<String, s32> bla;
-  wha.push( bla );
-  wha[1]["NO"] = 5;
+  // wha[0]["ok"] = 1;
+  // (wha[0])["ok"] = 2;
 
-  wha[1]["NO"] = 3;
+  // Map<String, s32> bla;
+  // wha.push( bla );
+  // wha[1]["NO"] = 5;
+
+  // wha[1]["NO"] = 3;
 
   // wha[0]["Test"] = 3;
 
@@ -174,8 +183,6 @@ void on_reload()
     // delete_vfs( test );
      //your on reload goes here, relevant for hot reloading
 }
-
-static bse::Array<bse::String> testiuee;
 
 
 void tick()

@@ -7,11 +7,8 @@ namespace bse
   {
     template<typename... Args> void log( LogParameters const& parameters, Args... args )
     {
-      s32 const MAX_DEBUG_MESSAGE_LENGTH = 8192;
-      char debugBuffer[MAX_DEBUG_MESSAGE_LENGTH];
-      s32 bytesToWrite = 0;
-
-      // s32 bytesToWrite = bse::string_format( debugBuffer, MAX_DEBUG_MESSAGE_LENGTH, args... ) - 1 /* ommit null */;
+      char debugBuffer[BSE_STACK_BUFFER_LARGE];
+      s32 bytesToWrite = bse::string_format( debugBuffer, BSE_STACK_BUFFER_LARGE, args... ) - 1 /* ommit null */;
 
       if ( bytesToWrite > 0 )
       {

@@ -5,7 +5,7 @@
 //#define BSE_BUILD_SKIP_AUDIO
 //#define BSE_BUILD_SKIP_INPUT
 
-#include "include/bse_core_include.h"
+#include "core/include/bse_core_include.h"
 
 namespace bse
 {
@@ -105,9 +105,7 @@ namespace bse
     {
       u64 frameIndex;
       float deltaTime;
-      #if !defined(BSE_BUILD_SKIP_INPUT)
       Input input;
-      #endif
     } thisFrame;
 
     struct
@@ -176,4 +174,4 @@ namespace bse
   extern "C" core_tick_fn core_tick_internal;
 };
 
-#include "core/bse_core_unity_build.cpp"
+#include "core/src/bse_core_src.cpp"
