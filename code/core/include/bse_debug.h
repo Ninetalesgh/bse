@@ -24,9 +24,9 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if defined(BSE_BUILD_DEBUG_DEVELOPMENT)
-# define debug_log_info( ... ) bse::debug::log({bse::debug::LogSeverity::INFO, bse::debug::LogOutputType::LOCAL_AND_FILE}, "[DEV]", __VA_ARGS__)
-# define debug_log_warning( ... ) bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::LOCAL_AND_FILE}, "[DEV]", __VA_ARGS__)
-# define debug_log_error( ... ) bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::LOCAL_AND_FILE}, "[DEV]", __VA_ARGS__)
+# define debug_log_info( ... ) bse::debug::log({bse::debug::LogSeverity::INFO, bse::debug::LogOutputType::LOCAL_AND_FILE}, "[DEV] ", __VA_ARGS__)
+# define debug_log_warning( ... ) bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::LOCAL_AND_FILE}, "[DEV] ", __VA_ARGS__)
+# define debug_log_error( ... ) bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::LOCAL_AND_FILE}, "[DEV] ", __VA_ARGS__)
 #else
 # define debug_log_info( ... ) {}
 # define debug_log_warning( ... ) {}

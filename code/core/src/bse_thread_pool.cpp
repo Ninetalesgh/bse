@@ -1,6 +1,5 @@
 #include "bse_core.h"
 
-#include <type_traits>
 
 namespace bse
 {
@@ -80,84 +79,11 @@ namespace bse
   using IntInt = StaticFunction<int, int>;
 
 
-  //////////////////////////////////////////////////////////////////////////////////////////////////////
-  ////////// Function Pointers /////////////////////////////////////////////////////////////////////////
-  //////////////////////////////////////////////////////////////////////////////////////////////////////
-  ///// Heavily inspired by std::function, many thanks <3.           ///////////////////////////////////
-  //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  template <typename ReturnType, typename... Args> struct _FuncClass
-  {
-    template <class F, class _Function>
-    using _EnableIfCallableType = std::enable_if_t<std::conjunction_v<std::negation<std::is_same<std::decay_t<F>, _Function>>, std::_Is_invocable_r<ReturnType, F, Args...>>, int>;
-    using Signature = ReturnType( * )(Args...);
-
-    INLINE ReturnType operator()( Args... args ) const
-    {
-      return std::invoke( ptr, std::forward<Args>( args )... );
-    }
-
-    union
-    {
-      Signature ptr;
-      struct { s32 index; s32 padding; };
-    };
-  };
-
-  template <typename ReturnType, typename T, typename... Args> struct _MemberFuncClass
-  {
-    template <class F, class _Function>
-    using _EnableIfCallableType = std::enable_if_t<std::conjunction_v<std::negation<std::is_same<std::decay_t<F>, _Function>>, std::_Is_invocable_r<ReturnType, F, T, Args...>>, int>;
-    using Signature = ReturnType( T::* )(Args...);
-    using SignatureWithoutClass = ReturnType( Args... );
-
-    INLINE ReturnType operator()( T* obj, Args... args ) const
-    {
-      return std::invoke( ptr, std::forward<T*>( obj ), std::forward<Args>( args )... );
-    }
-
-    union
-    {
-      Signature ptr;
-      struct { s32 index; s32 padding; };
-    };
-  };
-
-  template <typename T> struct _GetFunc { static_assert(std::_Always_false<T>, "Function does not accept non-function types as template arguments."); };
-  #define _GET_FUNCTION_IMPL(CALL_OPT, X1, X2, X3) template <typename R, typename Arg, typename... Args> struct _GetFunc<R CALL_OPT(Arg, Args...)> { using type = _FuncClass<R, Arg, Args...>; };
-  _NON_MEMBER_CALL( _GET_FUNCTION_IMPL, X1, X2, X3 );
-  #undef _GET_FUNCTION_IMPL
-
-  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( __thiscall Arg::* )(Args...)> { using type = _MemberFuncClass<R, Arg, Args...>; };
-  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( __thiscall Arg::* )(Args...) const> { using type = _MemberFuncClass<R, Arg, Args...>; };
-
-  template<typename F> struct Function : public _GetFunc<F>::type
-  {
-    using Super = typename _GetFunc<F>::type;
-    Function() { ptr = nullptr; }
-    Function( Function<F> const& other ) { ptr = other.ptr; }
-    Function( Function<F>&& other ) { ptr = other.ptr; other.ptr = nullptr; }
-
-    template<typename T, class = typename Super::_EnableIfCallableType<T&, Function>>
-    Function( T func )
-    {
-      ptr = (Signature) func;
-    }
-
-    template<typename T, class = typename Super::_EnableIfCallableType<T&, Function>>
-    Function<F>& operator=( T&& func ) { ptr = (Signature) func; return *this; }
-  };
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
-  ////////// Make Function Pointers ////////////////////////////////////////////////////////////////////
+  ////////// Static Registry ///////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  template <bool Enabled, typename F> struct _FunctionTypeReduction {};
-  template<typename F> struct _FunctionTypeReduction<true, F> { using type = typename Function<typename std::remove_pointer<F>::type>; };
-  template<typename F> struct _FunctionTypeReduction<false, F> { using type = typename Function<typename _GetFunc<decltype(&std::remove_reference<F>::type::operator())>::type::SignatureWithoutClass>; };
-  template<typename F> using _ReducedFunctionType = typename _FunctionTypeReduction<std::disjunction_v<std::is_member_function_pointer<F>, std::is_function<typename std::remove_pointer<F>::type>>, F >::type;
-  template<typename F> _ReducedFunctionType<F> make_function( F&& functor ) { return { std::forward<F>( functor ) }; }
-
 
 
 
@@ -180,6 +106,9 @@ namespace bse
   void threadtest()
   {
 
+    register_function( &What::doit );
+    register_function( &What::doti );
+
     What aaaa;
     auto ga = []( int a ) {return int( 2 );};
 
@@ -189,8 +118,8 @@ namespace bse
 
     fun1( &aaaa, 3 );
     fun2( 4 );
-    fun( 5 );
-    int a = 2;
+    // fun( 5 );
+    // int a = 2;
 
     //make_function( []( int a ) {return int( 2 );} );
 

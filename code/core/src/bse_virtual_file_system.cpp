@@ -203,7 +203,7 @@ namespace bse
 //       return nullptr;
 //     }
 
-//     void* data = bs::allocate( bsp::platform->default.allocator, size );
+//     void* data = bs::allocate( bsp::platform->default.generalAllocator, size );
 //     if ( data )
 //     {
 //       if ( bsp::platform->load_file_part( actualPath, 0, data, (u32) size ) )
@@ -217,7 +217,7 @@ namespace bse
 //       }
 //       else
 //       {
-//         bs::free( bsp::platform->default.allocator, data );
+//         bs::free( bsp::platform->default.generalAllocator, data );
 //       }
 //     }
 
@@ -235,7 +235,7 @@ namespace bse
 //     {
 //       if ( file->data && file->type != FileType::PCA )
 //       {
-//         bs::free( bsp::platform->default.allocator, file->data );
+//         bs::free( bsp::platform->default.generalAllocator, file->data );
 //       }
 
 //       interlocked_decrement( (s32 volatile*) &fs->loadedFilesCount );

@@ -9,6 +9,20 @@ namespace bse
   namespace memory
   {
     //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Best Use //////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    //allocate in the default frame memory
+    // !!! WARNING !!! 
+    //anything allocated will only live for this frame and the next frame
+    [[nodiscard]] void* allocate_frame( s64 size );
+
+    //general use allocator
+    //TODO either make this thread safe or supply a thread safe one on top of this
+    [[nodiscard]] void* allocate( s64 size );
+    void free( void* ptr, s64 size );
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// General ///////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -21,6 +35,7 @@ namespace bse
     };
     enum class AllocatorPolicy : u32
     {
+      None = 0b0,
       //
       //If set the container will either grow or allocate memory from parent allocator.
       //If unset overflowing allocations return nullptr.
@@ -72,6 +87,7 @@ namespace bse
 
     [[nodiscard]] Arena* new_arena( Allocator* parent, s64 size, AllocatorPolicy const& policy );
     [[nodiscard]] Arena* new_arena( Allocator* parent, s64 size ) { return new_arena( parent, size, AllocatorPolicy::AllowGrowth | AllocatorPolicy::GeometricGrowth ); }
+    [[nodiscard]] Arena* new_arena( Allocator* parent, void* existingBuffer, s64 bufferSize, AllocatorPolicy const& policy );
     void delete_arena( Arena* arena );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -2,12 +2,18 @@
 
 #include <memory>
 
-
-
 namespace bse
 {
   namespace memory
   {
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Best Use //////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    void* allocate_for_frame( s64 size ) { return allocate( platform->default.frameAllocator[platform->thisFrame.frameIndex % 2], size ); }
+    void* allocate( s64 size ) { return allocate( platform->default.generalAllocator, size ); }
+    void free( void* ptr, s64 size ) { return free( platform->default.generalAllocator, ptr, size ); }
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// General ///////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -16,7 +22,7 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        return allocate( platform->default.allocator, size );
+        return allocate( platform->default.generalAllocator, size );
       }
 
       switch ( allocator->type )
@@ -52,7 +58,7 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        return reallocate( platform->default.allocator, ptr, oldSize, newSize );
+        return reallocate( platform->default.generalAllocator, ptr, oldSize, newSize );
       }
 
       switch ( allocator->type )
@@ -89,7 +95,7 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        free( platform->default.allocator, ptr, size );
+        free( platform->default.generalAllocator, ptr, size );
       }
       else
       {
@@ -127,7 +133,7 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        platform->free_virtual_memory( ptr );
+        BREAK; // general allocator needs size to free
       }
       else
       {
@@ -211,6 +217,10 @@ namespace bse
           s64 nextSize = enum_contains( arena->policy, AllocatorPolicy::GeometricGrowth ) ? 2 * arena->size : arena->size;
           arena->nextArena = new_arena( arena->parent, nextSize, arena->policy );
         }
+        else
+        {
+          BREAK;
+        }
 
         return arena->nextArena ? allocate( arena->nextArena, size ) : nullptr;
       }
@@ -257,7 +267,7 @@ namespace bse
     Arena* new_arena( Allocator* parent, s64 size, AllocatorPolicy const& policy )
     {
       s64 allocationSize = sizeof( Arena ) + size;
-      if ( parent == nullptr )
+      if ( !parent || parent->type == AllocatorType::VirtualMemory )
       {
         parent = &VirtualMemoryAllocator;
         //round up to page size, since it would be wasted otherwise
@@ -276,6 +286,23 @@ namespace bse
         result->begin     = (char*) (result + 1);
         result->ptr       = result->begin;
         result->size      = size;
+        result->nextArena = nullptr;
+      }
+      return result;
+    }
+
+    Arena* new_arena( Allocator* parent, void* existingBuffer, s64 bufferSize, AllocatorPolicy const& policy )
+    {
+      //Arena struct sits at the beginning of the allocation
+      Arena* result = (Arena*) existingBuffer;
+      if ( result )
+      {
+        result->type      = AllocatorType::Arena;
+        result->policy    = policy;
+        result->parent    = parent;
+        result->begin     = (char*) (result + 1);
+        result->ptr       = result->begin;
+        result->size      = bufferSize - sizeof( Arena );
         result->nextArena = nullptr;
       }
       return result;
@@ -344,7 +371,7 @@ namespace bse
       s64 const poolSize = round_up_to_multiple_of( sizeof( MonotonicPool ), 64 );
 
       s64 allocationSize = poolSize + size;
-      if ( parent == nullptr )
+      if ( !parent || parent->type == AllocatorType::VirtualMemory )
       {
         parent = &VirtualMemoryAllocator;
         //round up to page size, since it would be wasted otherwise
@@ -437,7 +464,7 @@ namespace bse
 
       s64 fillerAllocationSize = 0;
       s64 fillerPoolSize = 0;
-      if ( parent == nullptr )
+      if ( !parent || parent->type == AllocatorType::VirtualMemory )
       {
         parent = &VirtualMemoryAllocator;
         //round up to page size, since it would be wasted otherwise

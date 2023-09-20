@@ -79,8 +79,8 @@ namespace bse
 
     struct DefaultSystems
     {
-      memory::Multipool* allocator;
-
+      memory::Arena* frameAllocator[2];
+      memory::Multipool* generalAllocator;
       // VirtualFileSystem vfs;
 
        //ThreadPool for worker threads and keeping track of ids
@@ -98,6 +98,7 @@ namespace bse
       ProcessorArchitecture processorArchitecture;
       u32 virtualMemoryPageSize;
       u32 virtualMemoryAllocationGranularity;
+      s64 frameAllocatorSize;
     } info;
 
     //this memory gets invalidated frequently I suppose TODO

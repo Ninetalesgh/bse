@@ -5,6 +5,7 @@
 #include "bse_debug.h"
 #include "bse_math.h"
 #include "bse_allocator.h"
+#include "bse_function.h"
 #include "bse_container.h"
 #include "bse_thread.h"
 #include "bse_virtual_file_system.h"

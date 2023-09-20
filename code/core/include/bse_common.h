@@ -103,9 +103,9 @@ constexpr INLINE s32   clamp( s32 value, s32 low, s32 high ) { return max( min( 
 constexpr INLINE s64   clamp( s64 value, s64 low, s64 high ) { return max( min( value, high ), low ); }
 constexpr INLINE float clamp( float value, float low, float high ) { return max( min( value, high ), low ); }
 
-constexpr INLINE u64 KiloBytes( u64 kiloBytes ) { return kiloBytes * 1024ULL; }
-constexpr INLINE u64 MegaBytes( u64 megaBytes ) { return KiloBytes( megaBytes ) * 1024ULL; }
-constexpr INLINE u64 GigaBytes( u64 gigaBytes ) { return MegaBytes( gigaBytes ) * 1024ULL; }
+constexpr INLINE s64 KiloBytes( s64 kiloBytes ) { return kiloBytes * 1024LL; }
+constexpr INLINE s64 MegaBytes( s64 megaBytes ) { return KiloBytes( megaBytes ) * 1024LL; }
+constexpr INLINE s64 GigaBytes( s64 gigaBytes ) { return MegaBytes( gigaBytes ) * 1024LL; }
 
 constexpr INLINE bool is_negative( float x ) { return (*(u32*) &x) & 0x80000000; }
 constexpr INLINE bool is_negative( s32 x ) { return (*(u32*) &x) & 0x80000000; }

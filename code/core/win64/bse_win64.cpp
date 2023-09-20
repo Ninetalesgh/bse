@@ -53,6 +53,16 @@ int bse_init( int argc, char** argv )
   win64::register_platform_callbacks();
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Init Timer ////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  result = QueryPerformanceFrequency( (LARGE_INTEGER*) &win64::global::performanceCounterFrequency );
+  assert( result );
+
+  result = (s32) timeBeginPeriod( 1 );
+  assert( result == TIMERR_NOERROR );
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Init Platform /////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -65,7 +75,13 @@ int bse_init( int argc, char** argv )
     bse::platform->info.virtualMemoryPageSize = systemInfo.dwPageSize;
     bse::platform->info.processorArchitecture = bse::ProcessorArchitecture( systemInfo.wProcessorArchitecture );
 
-    bse::platform->default.allocator = bse::memory::new_multipool( nullptr, bse::platform->info.virtualMemoryPageSize - sizeof( bse::memory::Multipool ), 16 );
+    s64 frameAllocatorSize = bse::platform->info.frameAllocatorSize = GigaBytes( 4 );
+
+    char* frameBuffers = (char*) bse::memory::allocate( &bse::memory::VirtualMemoryAllocator, frameAllocatorSize * 2 );
+    bse::platform->default.frameAllocator[0] = bse::memory::new_arena( nullptr, frameBuffers, frameAllocatorSize, bse::memory::AllocatorPolicy::None );
+    bse::platform->default.frameAllocator[1] = bse::memory::new_arena( nullptr, frameBuffers + frameAllocatorSize, frameAllocatorSize, bse::memory::AllocatorPolicy::None );
+
+    bse::platform->default.generalAllocator = bse::memory::new_multipool( nullptr, bse::platform->info.virtualMemoryPageSize - sizeof( bse::memory::Multipool ), 16 );
 
     win64::get_exe_path( stack, BSE_STACK_BUFFER_MEDIUM );
     bse::string_replace_char( stack, '\\', '/' );
@@ -73,16 +89,6 @@ int bse_init( int argc, char** argv )
 
     //bse::platform->default.vfs;
   }
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////////
-  ////////// Init Timer ////////////////////////////////////////////////////////////////////////////////
-  //////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  result = QueryPerformanceFrequency( (LARGE_INTEGER*) &win64::global::performanceCounterFrequency );
-  assert( result );
-
-  result = (s32) timeBeginPeriod( 1 );
-  assert( result == TIMERR_NOERROR );
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Init Core and fetch app specifications for platform, quit right after if desired //////////
