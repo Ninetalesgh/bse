@@ -84,13 +84,13 @@ int bse_init( int argc, char** argv )
 
     bse::platform->allocators.threadSafe = bse::memory::new_multipool( &bse::platform->allocators.virtualMemory
       , bse::platform->info.virtualMemoryPageSize - sizeof( bse::memory::Multipool ), 16
-      , AllocatorPolicyFlags::AllowGrowth | AllocatorPolicyFlags::GeometricGrowth | AllocatorPolicyFlags::ThreadSafe );
+      , bse::memory::AllocatorPolicyFlags::AllowGrowth | bse::memory::AllocatorPolicyFlags::GeometricGrowth | bse::memory::AllocatorPolicyFlags::ThreadSafe );
 
     constexpr s64 sizePerFrame = GigaBytes( 1 ) - sizeof( bse::memory::Arena );
 
-    for ( s32 i = 0; i < array_count( bse::platform->allocators.temporaryAllocator ); ++i )
+    for ( s32 i = 0; i < array_count( bse::platform->allocators.temporary ); ++i )
     {
-      bse::platform->allocators.temporaryAllocator[i] = bse::memory::new_arena( &bse::platform->allocators.virtualMemory.temporary, sizePerFrame, bse::memory::AllocatorPolicyFlags::AllowGrowth );
+      bse::platform->allocators.temporary[i] = bse::memory::new_arena( &bse::platform->allocators.virtualMemory.temporary, sizePerFrame, bse::memory::AllocatorPolicyFlags::AllowGrowth );
     }
 
     win64::get_exe_path( stack, BSE_STACK_BUFFER_MEDIUM );

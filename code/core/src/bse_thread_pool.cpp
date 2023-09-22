@@ -15,7 +15,7 @@ namespace bse
 
     // auto fun1 = make_function( &What::doit );
     // auto fun2 = make_function( ga );
-  //  auto fun = make_function( &test1 );
+    // auto fun = make_function( &test1 );
 
     // fun1( &aaaa, 3 );
     // fun2( 4 );
