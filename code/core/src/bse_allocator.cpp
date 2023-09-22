@@ -28,7 +28,7 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        return allocate_general( size );
+        return allocate_thread_safe( size );
       }
 
       switch ( allocator->type )
@@ -64,7 +64,7 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        return reallocate_general( ptr, oldSize, newSize );
+        return reallocate_thread_safe( ptr, oldSize, newSize );
       }
 
       switch ( allocator->type )
@@ -101,7 +101,7 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        free_general( ptr, size );
+        free_thread_safe( ptr, size );
       }
       else
       {
