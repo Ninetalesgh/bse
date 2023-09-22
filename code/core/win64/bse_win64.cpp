@@ -73,21 +73,31 @@ int bse_init( int argc, char** argv )
     bse::platform->info.processorCount = systemInfo.dwNumberOfProcessors;
     bse::platform->info.virtualMemoryAllocationGranularity = systemInfo.dwAllocationGranularity;
     bse::platform->info.virtualMemoryPageSize = systemInfo.dwPageSize;
+    bse::platform->info.virtualMemoryAddressBegin = (char*) systemInfo.lpMinimumApplicationAddress;
+    bse::platform->info.virtualMemoryAddressEnd = (char*) systemInfo.lpMaximumApplicationAddress;
+
     bse::platform->info.processorArchitecture = bse::ProcessorArchitecture( systemInfo.wProcessorArchitecture );
 
-    s64 frameAllocatorSize = bse::platform->info.frameAllocatorSize = GigaBytes( 4 );
+    bse::memory::init_virtual_memory_layout( bse::platform->allocators.virtualMemory );
+    bse::platform->allocators.mainThread = bse::memory::new_multipool( &bse::platform->allocators.virtualMemory
+      , bse::platform->info.virtualMemoryPageSize - sizeof( bse::memory::Multipool ), 16 );
 
-    char* frameBuffers = (char*) bse::memory::allocate( &bse::memory::VirtualMemoryAllocator, frameAllocatorSize * 2 );
-    bse::platform->default.frameAllocator[0] = bse::memory::new_arena( nullptr, frameBuffers, frameAllocatorSize, bse::memory::AllocatorPolicy::None );
-    bse::platform->default.frameAllocator[1] = bse::memory::new_arena( nullptr, frameBuffers + frameAllocatorSize, frameAllocatorSize, bse::memory::AllocatorPolicy::None );
+    bse::platform->allocators.threadSafe = bse::memory::new_multipool( &bse::platform->allocators.virtualMemory
+      , bse::platform->info.virtualMemoryPageSize - sizeof( bse::memory::Multipool ), 16
+      , AllocatorPolicyFlags::AllowGrowth | AllocatorPolicyFlags::GeometricGrowth | AllocatorPolicyFlags::ThreadSafe );
 
-    bse::platform->default.generalAllocator = bse::memory::new_multipool( nullptr, bse::platform->info.virtualMemoryPageSize - sizeof( bse::memory::Multipool ), 16 );
+    constexpr s64 sizePerFrame = GigaBytes( 1 ) - sizeof( bse::memory::Arena );
+
+    for ( s32 i = 0; i < array_count( bse::platform->allocators.temporaryAllocator ); ++i )
+    {
+      bse::platform->allocators.temporaryAllocator[i] = bse::memory::new_arena( &bse::platform->allocators.virtualMemory.temporary, sizePerFrame, bse::memory::AllocatorPolicyFlags::AllowGrowth );
+    }
 
     win64::get_exe_path( stack, BSE_STACK_BUFFER_MEDIUM );
     bse::string_replace_char( stack, '\\', '/' );
     bse::platform->info.executablePath = stack;
 
-    //bse::platform->default.vfs;
+    //bse::platform->allocators.vfs;
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////

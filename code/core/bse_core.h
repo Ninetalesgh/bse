@@ -24,7 +24,7 @@ namespace bse
     ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    using allocate_virtual_memory_fn = void* (s64 size);
+    using allocate_virtual_memory_fn = void* (void* address, s64 size);
     using decommit_virtual_memory_fn = void( void*, s64 size );
     using free_virtual_memory_fn = void( void* );
 
@@ -77,10 +77,16 @@ namespace bse
     //This is to be user defined
    // AppUserData* userData;
 
+    struct Allocators
+    {
+      memory::VirtualMemoryLayout virtualMemory;
+      memory::Arena* temporary[8];
+      memory::Multipool* mainThread;
+      memory::Multipool* threadSafe;
+    } allocators;
+
     struct DefaultSystems
     {
-      memory::Arena* frameAllocator[2];
-      memory::Multipool* generalAllocator;
       // VirtualFileSystem vfs;
 
        //ThreadPool for worker threads and keeping track of ids
@@ -95,10 +101,11 @@ namespace bse
     {
       String executablePath;
       s32 processorCount;
-      ProcessorArchitecture processorArchitecture;
       u32 virtualMemoryPageSize;
       u32 virtualMemoryAllocationGranularity;
-      s64 frameAllocatorSize;
+      char* virtualMemoryAddressBegin;
+      char* virtualMemoryAddressEnd;
+      ProcessorArchitecture processorArchitecture;
     } info;
 
     //this memory gets invalidated frequently I suppose TODO

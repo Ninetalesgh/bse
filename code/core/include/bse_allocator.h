@@ -9,31 +9,35 @@ namespace bse
   namespace memory
   {
     //////////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////// Best Use //////////////////////////////////////////////////////////////////////////////////
+    ////////// In-Engine Use /////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     //allocate in the default frame memory
     // !!! WARNING !!! 
-    //anything allocated will only live for this frame and the next frame
-    [[nodiscard]] void* allocate_frame( s64 size );
+    //anything allocated will only live for a couple of frames!
+    //TODO this is now only main thread, I think I'll fetch these by threadID ? 
+    [[nodiscard]] void* allocate_temporary( s64 size );
 
-    //general use allocator
-    //TODO either make this thread safe or supply a thread safe one on top of this
-    [[nodiscard]] void* allocate( s64 size );
-    void free( void* ptr, s64 size );
+    [[nodiscard]] void* allocate_main_thread( s64 size );
+    [[nodiscard]] void* reallocate_main_thread( void* ptr, s64 oldSize, s64 newSize );
+    void free_main_thread( void* ptr, s64 size );
+
+    [[nodiscard]] void* allocate_thread_safe( s64 size );
+    [[nodiscard]] void* reallocate_thread_safe( void* ptr, s64 oldSize, s64 newSize );
+    void free_thread_safe( void* ptr, s64 size );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// General ///////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    enum class AllocatorType : u32
+    enum class AllocatorType : u16
     {
       VirtualMemory = 0,
       Arena,
       Multipool,
       MonotonicPool
     };
-    enum class AllocatorPolicy : u32
+    enum class AllocatorPolicyFlags : u16
     {
       None = 0b0,
       //
@@ -45,8 +49,13 @@ namespace bse
       //If set the container will grow exponentially.
       //If unset container will grow linearly.
       GeometricGrowth = 0b10,
+      //
+      //Only implemented for Arena currently
+      //If set container is thread safe
+      //If unset container is faster, but should be used with multithreading behaviour in mind
+      ThreadSafe = 0b100,
     };
-    BSE_DEFINE_ENUM_OPERATORS_U32( AllocatorPolicy );
+    BSE_DEFINE_ENUM_OPERATORS_U16( AllocatorPolicyFlags );
 
     struct Allocator;
     [[nodiscard]] void* allocate( Allocator* allocator, s64 size );
@@ -82,13 +91,18 @@ namespace bse
     [[nodiscard]] void* reallocate( Arena* arena, void* ptr, s64 oldSize, s64 newSize );
     void free( Arena* arena, void* ptr );
 
-    //free everything 
+    //this does not release memory
     void clear_arena( Arena* arena );
 
-    [[nodiscard]] Arena* new_arena( Allocator* parent, s64 size, AllocatorPolicy const& policy );
-    [[nodiscard]] Arena* new_arena( Allocator* parent, s64 size ) { return new_arena( parent, size, AllocatorPolicy::AllowGrowth | AllocatorPolicy::GeometricGrowth ); }
-    [[nodiscard]] Arena* new_arena( Allocator* parent, void* existingBuffer, s64 bufferSize, AllocatorPolicy const& policy );
+    //in-place arenas
+    [[nodiscard]] Arena* new_arena( Allocator* parent, s64 size, AllocatorPolicyFlags const& policy );
+    [[nodiscard]] Arena* new_arena( Allocator* parent, s64 size ) { return new_arena( parent, size, AllocatorPolicyFlags::AllowGrowth | AllocatorPolicyFlags::GeometricGrowth ); }
+    [[nodiscard]] Arena* new_arena( Allocator* parent, void* existingBuffer, s64 bufferSize, AllocatorPolicyFlags const& policy );
     void delete_arena( Arena* arena );
+
+    //out-of-place arenas
+    void init_arena( Arena& arena, Allocator* parent, s64 size, AllocatorPolicyFlags const& policy );
+    void deinit_arena( Arena& arena );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// MonotonicPool /////////////////////////////////////////////////////////////////////////////
@@ -102,8 +116,8 @@ namespace bse
     [[nodiscard]] void* reallocate( MonotonicPool* pool, void* ptr, s64 oldSize, s64 newSize );
     void free( MonotonicPool* pool, void* ptr );
 
-    [[nodiscard]] MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity, AllocatorPolicy const& policy );
-    [[nodiscard]] MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity ) { return new_monotonic_pool( parent, size, granularity, AllocatorPolicy::AllowGrowth | AllocatorPolicy::GeometricGrowth ); }
+    [[nodiscard]] MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity, AllocatorPolicyFlags const& policy );
+    [[nodiscard]] MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity ) { return new_monotonic_pool( parent, size, granularity, AllocatorPolicyFlags::AllowGrowth | AllocatorPolicyFlags::GeometricGrowth ); }
     void delete_monotonic_pool( MonotonicPool* pool );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -118,12 +132,38 @@ namespace bse
     [[nodiscard]] void* reallocate( Multipool* multipool, void* ptr, s64 oldSize, s64 newSize );
     void free( Multipool* multipool, void* ptr, s64 size );
 
-    [[nodiscard]] Multipool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity, AllocatorPolicy const& policy );
-    [[nodiscard]] Multipool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity ) { return new_multipool( parent, maxPoolSize, poolSizeGranularity, AllocatorPolicy::AllowGrowth | AllocatorPolicy::GeometricGrowth ); }
+    [[nodiscard]] Multipool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity, AllocatorPolicyFlags const& policy );
+    [[nodiscard]] Multipool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity ) { return new_multipool( parent, maxPoolSize, poolSizeGranularity, AllocatorPolicyFlags::AllowGrowth | AllocatorPolicyFlags::GeometricGrowth ); }
     void delete_multipool( Multipool* multipool );
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Virtual Memory Layout /////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ///// This is the memory layout of brewing station,                       ////////////////////////////
+    ///// made up of memory for networking, temporary and general allocations ////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    //TODO VERY IMPORTANT ALLOCATORS SAFE FOR THREADING
+    struct VirtualMemoryLayout;
+    void init_virtual_memory_layout( VirtualMemoryLayout& layout );
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Pointer Info //////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ///// Helper functions for pointers.                                      ////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    enum Type : u32
+    {
+      Network,
+      Temporary,
+      General,
+    };
+
+    bool is_part_of( Arena* arena, void* ptr );
+    memory::Type get_memory_type( void* ptr );
+    bool is_network( void* ptr );
+    bool is_temporary( void* ptr );
+    bool is_general( void* ptr );
   };
 };
 
@@ -148,11 +188,9 @@ namespace bse
       constexpr static u32 ALIGNMENT = 64;
       Allocator* parent;
       AllocatorType type;
-      AllocatorPolicy policy;
-      Allocator() : type( AllocatorType::VirtualMemory ) {}
+      AllocatorPolicyFlags policy;
+      atomic32 allocatorLock;
     };
-    //Dummy struct for the type
-    static Allocator VirtualMemoryAllocator;
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// Arena /////////////////////////////////////////////////////////////////////////////////////
@@ -193,6 +231,16 @@ namespace bse
       s64 poolSizeMax;
       s64 poolSizeGranularity;
       s64 defaultElementCount;
+    };
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Virtual Memory Layout /////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    struct VirtualMemoryLayout : Allocator
+    {
+      Arena network;
+      Arena temporary;
     };
   };
 };

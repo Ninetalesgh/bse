@@ -16,7 +16,7 @@ namespace win64
   ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  void* allocate_virtual_memory( s64 size );
+  void* allocate_virtual_memory( void* address, s64 size );
   void free_virtual_memory( void* allocationToFree );
   void decommit_virtual_memory( void* committedMemory, s64 size );
 
@@ -101,15 +101,23 @@ namespace win64
        // UnlockFile(debug_log_file, dwPos, 0, dwBytesRead, 0);
     // }
   };
+
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  void* allocate_virtual_memory( s64 size )
+  void* allocate_virtual_memory( void* address, s64 size )
   {
     debug_log_info( "Reserving ", size, " Bytes of virtual Memory." );
     // return malloc( size );
-    return VirtualAlloc( 0, (s64) size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE );
+    void* result = VirtualAlloc( address, (s64) size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE );
+    if ( !result )
+    {
+      u32 errormsg = GetLastError();
+      log_warning( errormsg );
+      BREAK;
+    }
+    return result;
   }
 
   void decommit_virtual_memory( void* committedMemory, s64 size )

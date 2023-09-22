@@ -38,7 +38,7 @@ INLINE enumtypename& operator &= ( enumtypename& a, enumtypename b ) { a = b & a
 INLINE enumtypename  operator ~  ( enumtypename a ) { return enumtypename( ~basictype( a ) ); }\
 INLINE enumtypename  operator ^  ( enumtypename a, enumtypename b ) { return enumtypename( basictype( a ) ^ basictype( b ) ); }\
 INLINE enumtypename& operator ^= ( enumtypename& a, enumtypename b ) { a = b ^ a; return a; }\
-INLINE bool enum_contains(enumtypename a, enumtypename b) { return (basictype(a) & basictype(b)) == basictype(b);}
+INLINE bool flags_contain(enumtypename a, enumtypename b) { return (basictype(a) & basictype(b)) == basictype(b);}
 
 #define BSE_DEFINE_ENUM_OPERATORS_U8(enumtypename)  _DEFINE_ENUM_OPERATORS_INTERNAL(enumtypename, u8)
 #define BSE_DEFINE_ENUM_OPERATORS_U16(enumtypename) _DEFINE_ENUM_OPERATORS_INTERNAL(enumtypename, u16)

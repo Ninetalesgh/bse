@@ -8,8 +8,8 @@
 #include <common/bs_string.h>
 
 //TODO put a quicker allocator here
-#define STBTT_malloc(x,u)  ((void)(u),bs::allocate(bsp::platform->default.generalAllocator, x))
-#define STBTT_free(x,u)    ((void)(u),bs::free(bsp::platform->default.generalAllocator, x))
+#define STBTT_malloc(x,u)  ((void)(u),bs::allocate(bsp::platform->allocators.generalAllocator, x))
+#define STBTT_free(x,u)    ((void)(u),bs::free(bsp::platform->allocators.generalAllocator, x))
 
 #define STBTT_assert(x)    assert(x)
 #define STBTT_strlen(x)    bs::string_length(x)

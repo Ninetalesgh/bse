@@ -7,12 +7,18 @@ namespace bse
   namespace memory
   {
     //////////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////// Best Use //////////////////////////////////////////////////////////////////////////////////
+    ////////// In-Engine Use /////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void* allocate_for_frame( s64 size ) { return allocate( platform->default.frameAllocator[platform->thisFrame.frameIndex % 2], size ); }
-    void* allocate( s64 size ) { return allocate( platform->default.generalAllocator, size ); }
-    void free( void* ptr, s64 size ) { return free( platform->default.generalAllocator, ptr, size ); }
+    void* allocate_temporary( s64 size ) { return allocate( platform->allocators.temporary[platform->thisFrame.frameIndex % array_count( platform->allocators.temporary )], size ); }
+
+    void* allocate_main_thread( s64 size ) { return allocate( platform->allocators.mainThread, size ); }
+    void* reallocate_main_thread( void* ptr, s64 oldSize, s64 newSize ) { return reallocate( platform->allocators.mainThread, ptr, oldSize, newSize ); }
+    void free_main_thread( void* ptr, s64 size ) { return free( platform->allocators.mainThread, ptr, size ); }
+
+    void* allocate_thread_safe( s64 size ) { return allocate( platform->allocators.threadSafe, size ); }
+    void* reallocate_thread_safe( void* ptr, s64 oldSize, s64 newSize ) { return reallocate( platform->allocators.threadSafe, ptr, oldSize, newSize ); }
+    void free_thread_safe( void* ptr, s64 size ) { return free( platform->allocators.threadSafe, ptr, size ); }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// General ///////////////////////////////////////////////////////////////////////////////////
@@ -22,7 +28,7 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        return allocate( platform->default.generalAllocator, size );
+        return allocate_general( size );
       }
 
       switch ( allocator->type )
@@ -58,7 +64,7 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        return reallocate( platform->default.generalAllocator, ptr, oldSize, newSize );
+        return reallocate_general( ptr, oldSize, newSize );
       }
 
       switch ( allocator->type )
@@ -95,7 +101,7 @@ namespace bse
     {
       if ( allocator == nullptr )
       {
-        free( platform->default.generalAllocator, ptr, size );
+        free_general( ptr, size );
       }
       else
       {
@@ -182,7 +188,7 @@ namespace bse
         log_warning( "Allocation of ", size, " bytes only uses ", fill, " bytes of virtual page size ", platform->info.virtualMemoryPageSize, "." );
       }
       #endif
-      return platform->allocate_virtual_memory( size );
+      return platform->allocate_virtual_memory( nullptr, size );
     }
 
     void* reallocate_virtual_memory( void* ptr, s64 oldSize, s64 newSize )
@@ -207,14 +213,17 @@ namespace bse
 
     void* allocate( Arena* arena, s64 size )
     {
+      bool const locked = flags_contain( arena->policy, AllocatorPolicyFlags::ThreadSafe );
+      if ( locked ) thread::lock_atomic( arena->allocatorLock );
+
       u32 alignment = size > Allocator::ALIGNMENT ? Allocator::ALIGNMENT : round_up_to_next_power_of_two( u32( size ) );
       char* result = align_pointer_forward( arena->ptr, alignment );
 
       if ( result + size > arena->begin + arena->size )
       {
-        if ( enum_contains( arena->policy, AllocatorPolicy::AllowGrowth ) )
+        if ( flags_contain( arena->policy, AllocatorPolicyFlags::AllowGrowth ) )
         {
-          s64 nextSize = enum_contains( arena->policy, AllocatorPolicy::GeometricGrowth ) ? 2 * arena->size : arena->size;
+          s64 nextSize = flags_contain( arena->policy, AllocatorPolicyFlags::GeometricGrowth ) ? 2 * arena->size : arena->size;
           arena->nextArena = new_arena( arena->parent, nextSize, arena->policy );
         }
         else
@@ -225,6 +234,8 @@ namespace bse
         return arena->nextArena ? allocate( arena->nextArena, size ) : nullptr;
       }
       arena->ptr = result + size;
+
+      if ( locked ) thread::unlock_atomic( arena->allocatorLock );
       return result;
     }
 
@@ -249,6 +260,9 @@ namespace bse
 
     void free( Arena* arena, void* ptr )
     {
+      bool const locked = flags_contain( arena->policy, AllocatorPolicyFlags::ThreadSafe );
+      if ( locked ) thread::lock_atomic( arena->allocatorLock );
+
       if ( arena->begin <= ptr && ptr < arena->begin + arena->size )
       {
         arena->ptr = (char*) ptr;
@@ -262,14 +276,16 @@ namespace bse
         log_warning( "free called on memory not belonging to this arena." );
         BREAK;
       }
+
+      if ( locked ) thread::unlock_atomic( arena->allocatorLock );
     }
 
-    Arena* new_arena( Allocator* parent, s64 size, AllocatorPolicy const& policy )
+    Arena* new_arena( Allocator* parent, s64 size, AllocatorPolicyFlags const& policy )
     {
       s64 allocationSize = sizeof( Arena ) + size;
       if ( !parent || parent->type == AllocatorType::VirtualMemory )
       {
-        parent = &VirtualMemoryAllocator;
+        parent = &platform->allocators.virtualMemory;
         //round up to page size, since it would be wasted otherwise
         s64 roundUp = difference_to_multiple_of( allocationSize, platform->info.virtualMemoryPageSize );
         allocationSize += roundUp;
@@ -280,6 +296,7 @@ namespace bse
       Arena* result = (Arena*) allocate( parent, allocationSize );
       if ( result )
       {
+        result->allocatorLock = atomic32 {};
         result->type      = AllocatorType::Arena;
         result->policy    = policy;
         result->parent    = parent;
@@ -288,15 +305,20 @@ namespace bse
         result->size      = size;
         result->nextArena = nullptr;
       }
+      else
+      {
+        BREAK;
+      }
       return result;
     }
 
-    Arena* new_arena( Allocator* parent, void* existingBuffer, s64 bufferSize, AllocatorPolicy const& policy )
+    Arena* new_arena( Allocator* parent, void* existingBuffer, s64 bufferSize, AllocatorPolicyFlags const& policy )
     {
       //Arena struct sits at the beginning of the allocation
       Arena* result = (Arena*) existingBuffer;
       if ( result )
       {
+        result->allocatorLock = atomic32 {};
         result->type      = AllocatorType::Arena;
         result->policy    = policy;
         result->parent    = parent;
@@ -320,12 +342,42 @@ namespace bse
       if ( arena->nextArena ) clear_arena( arena->nextArena );
     }
 
+    void init_arena( Arena& arena, Allocator* parent, s64 bufferSize, AllocatorPolicyFlags const& policy )
+    {
+      if ( !parent || parent->type == AllocatorType::VirtualMemory )
+      {
+        parent = &platform->allocators.virtualMemory;
+        //round up to page bufferSize, since it would be wasted otherwise
+        s64 roundUp = difference_to_multiple_of( bufferSize, platform->info.virtualMemoryPageSize );
+        bufferSize += roundUp;
+      }
+
+      arena.allocatorLock = atomic32 {};
+      arena.type      = AllocatorType::Arena;
+      arena.policy    = policy;
+      arena.parent    = parent;
+      arena.begin     = (char*) allocate( parent, bufferSize );
+      arena.ptr       = arena.begin;
+      arena.size      = bufferSize;
+      arena.nextArena = nullptr;
+    }
+
+    void deinit_arena( Arena& arena )
+    {
+      if ( arena.nextArena ) { deinit_arena( *arena.nextArena ); }
+      free( arena.parent, arena.begin );
+    }
+
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// MonotonicPool /////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     void* allocate( MonotonicPool* pool )
     {
+      bool const locked = flags_contain( pool->policy, AllocatorPolicyFlags::ThreadSafe );
+      if ( locked ) thread::lock_atomic( pool->allocatorLock );
+
       if ( MonotonicPool::Slot* slot = pool->next )
       {
         pool->next = slot->next;
@@ -335,19 +387,25 @@ namespace bse
           pool->next = (MonotonicPool::Slot*) (((char*) slot) + pool->granularity);
           pool->next->next = nullptr;
         }
+
+        if ( locked ) thread::unlock_atomic( pool->allocatorLock );
         return slot;
       }
-      else if ( !pool->nextPool && enum_contains( pool->policy, AllocatorPolicy::AllowGrowth ) )
+      else if ( !pool->nextPool && flags_contain( pool->policy, AllocatorPolicyFlags::AllowGrowth ) )
       {
-        s64 nextSize = enum_contains( pool->policy, AllocatorPolicy::GeometricGrowth ) ? 2 * pool->size : pool->size;
+        s64 nextSize = flags_contain( pool->policy, AllocatorPolicyFlags::GeometricGrowth ) ? 2 * pool->size : pool->size;
         pool->nextPool = new_monotonic_pool( pool->parent, nextSize, pool->granularity, pool->policy );
       }
 
+      if ( locked ) thread::unlock_atomic( pool->allocatorLock );
       return pool->nextPool ? allocate( pool->nextPool ) : nullptr;
     }
 
     void free( MonotonicPool* pool, void* ptr )
     {
+      bool const locked = flags_contain( pool->policy, AllocatorPolicyFlags::ThreadSafe );
+      if ( locked ) thread::lock_atomic( pool->allocatorLock );
+
       if ( pool->begin <= ptr && ptr < pool->begin + pool->size )
       {
         MonotonicPool::Slot* slot = (MonotonicPool::Slot*) ptr;
@@ -363,9 +421,11 @@ namespace bse
         log_warning( "free called on memory not belonging to this monotonic pool." );
         BREAK;
       }
+
+      if ( locked ) thread::unlock_atomic( pool->allocatorLock );
     }
 
-    MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity, AllocatorPolicy const& policy )
+    MonotonicPool* new_monotonic_pool( Allocator* parent, s64 size, s64 granularity, AllocatorPolicyFlags const& policy )
     {
       //64 byte aligned should suffice for any crazy business
       s64 const poolSize = round_up_to_multiple_of( sizeof( MonotonicPool ), 64 );
@@ -373,7 +433,7 @@ namespace bse
       s64 allocationSize = poolSize + size;
       if ( !parent || parent->type == AllocatorType::VirtualMemory )
       {
-        parent = &VirtualMemoryAllocator;
+        parent = &platform->allocators.virtualMemory;
         //round up to page size, since it would be wasted otherwise
         s64 roundUp = difference_to_multiple_of( allocationSize, platform->info.virtualMemoryPageSize );
         allocationSize += roundUp;
@@ -388,6 +448,7 @@ namespace bse
       MonotonicPool* result = (MonotonicPool*) allocate( parent, allocationSize );
       if ( result )
       {
+        result->allocatorLock = atomic32 {};
         result->type        = AllocatorType::MonotonicPool;
         result->policy      = policy;
         result->parent      = parent;
@@ -422,11 +483,19 @@ namespace bse
       {
         s64 const poolIndex = (size - 1) / multipool->poolSizeGranularity;
         MonotonicPool*& pool = multipool->pools[poolIndex];
-        if ( !pool && enum_contains( multipool->policy, AllocatorPolicy::AllowGrowth ) )
+        if ( !pool && flags_contain( multipool->policy, AllocatorPolicyFlags::AllowGrowth ) )
         {
-          s64 const poolGranularity = min( multipool->poolSizeMax, (poolIndex + 1) * multipool->poolSizeGranularity );
-          s64 const poolSize = multipool->defaultElementCount * poolGranularity;
-          pool = new_monotonic_pool( multipool->parent, poolSize, poolGranularity, multipool->policy );
+          bool const locked = flags_contain( multipool->policy, AllocatorPolicyFlags::ThreadSafe );
+          if ( locked ) thread::lock_atomic( multipool->allocatorLock );
+
+          if ( !pool )
+          {
+            s64 const poolGranularity = min( multipool->poolSizeMax, (poolIndex + 1) * multipool->poolSizeGranularity );
+            s64 const poolSize = multipool->defaultElementCount * poolGranularity;
+            pool = new_monotonic_pool( multipool->parent, poolSize, poolGranularity, multipool->policy );
+          }
+
+          if ( locked ) thread::unlock_atomic( multipool->allocatorLock );
         }
 
         return pool ? allocate( pool ) : nullptr;
@@ -457,7 +526,7 @@ namespace bse
       }
     }
 
-    Multipool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity, AllocatorPolicy const& policy )
+    Multipool* new_multipool( Allocator* parent, s64 maxPoolSize, s64 poolSizeGranularity, AllocatorPolicyFlags const& policy )
     {
       s64 const poolCount = 1 + ((maxPoolSize - 1) / poolSizeGranularity);
       s64 const allocationSize = sizeof( Multipool ) + poolCount * sizeofptr;
@@ -466,7 +535,7 @@ namespace bse
       s64 fillerPoolSize = 0;
       if ( !parent || parent->type == AllocatorType::VirtualMemory )
       {
-        parent = &VirtualMemoryAllocator;
+        parent = &platform->allocators.virtualMemory;
         //round up to page size, since it would be wasted otherwise
         fillerAllocationSize = difference_to_multiple_of( allocationSize, platform->info.virtualMemoryPageSize );
         fillerPoolSize = fillerAllocationSize - sizeof( MonotonicPool );
@@ -486,19 +555,26 @@ namespace bse
 
       if ( result )
       {
+        result->allocatorLock = atomic32 {};
         result->type                = AllocatorType::Multipool;
         result->policy              = policy;
         result->parent              = parent;
         result->pools               = (MonotonicPool**) (result + 1);
         result->poolSizeMax         = maxPoolSize;
         result->poolSizeGranularity = poolSizeGranularity;
-        result->defaultElementCount = enum_contains( policy, AllocatorPolicy::AllowGrowth ) ? 16 : 0;
+        result->defaultElementCount = flags_contain( policy, AllocatorPolicyFlags::AllowGrowth ) ? 16 : 0;
+      }
+      else
+      {
+        BREAK;
       }
 
+      //fill the otherwise wasted space with allocator of smallest granularity
       if ( fillerAllocationSize )
       {
         result->pools[0] = (MonotonicPool*) (((char*) result) + allocationSize);
         MonotonicPool*& pool = result->pools[0];
+        pool->allocatorLock = atomic32 {};
         pool->type        = AllocatorType::MonotonicPool;
         pool->policy      = policy;
         pool->parent      = parent;
@@ -534,6 +610,90 @@ namespace bse
       }
 
       free( multipool->parent, multipool );
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Virtual Memory Layout /////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    void init_arena_for_virtual_memory_layout( Arena& arena, Allocator* parent, void* address, s64 size, AllocatorPolicyFlags const& policy )
+    {
+      arena.allocatorLock = atomic32 {};
+      arena.type      = AllocatorType::Arena;
+      arena.policy    = policy;
+      arena.parent    = parent;
+      arena.begin     = (char*) address;
+      arena.ptr       = arena.begin;
+      arena.size      = size;
+      arena.nextArena = nullptr;
+    }
+
+    void init_virtual_memory_layout( VirtualMemoryLayout& layout )
+    {
+      layout.allocatorLock = atomic32 {};
+      layout.type        = AllocatorType::VirtualMemory;
+      layout.policy      = AllocatorPolicyFlags::None;
+      layout.parent      = nullptr;
+
+      //hacked for now, probably won't matter for a lot of platforms
+      constexpr s64 networkSize = GigaBytes( 4 );
+      constexpr s64 temporarySize = GigaBytes( 16 );
+      constexpr s64 generalSize = 0;
+
+      AllocatorPolicyFlags policy = AllocatorPolicyFlags::ThreadSafe | AllocatorPolicyFlags::AllowGrowth;
+
+      s64 total = networkSize + temporarySize + generalSize;
+      s64 end = total / s64( platform->info.virtualMemoryPageSize );
+
+      char* pointer = nullptr;
+      assert( platform->info.virtualMemoryAddressEnd - platform->info.virtualMemoryAddressBegin > networkSize + temporarySize + generalSize );
+
+      pointer = (char*) platform->allocate_virtual_memory( 0, networkSize );
+      init_arena_for_virtual_memory_layout( layout.network, &layout, pointer, networkSize, policy );
+
+      pointer = (char*) platform->allocate_virtual_memory( 0, temporarySize );
+      init_arena_for_virtual_memory_layout( layout.temporary, &layout, pointer, temporarySize, policy );
+
+      //pointer = (char*) platform->allocate_virtual_memory( 0, generalSize );
+      //init_arena_for_virtual_memory_layout( layout.general, &layout, pointer, generalSize, policy );
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Pointer Info //////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    bool is_part_of( Arena* arena, void* ptr )
+    {
+      if ( ptr > arena->begin && ptr < arena->begin + arena->size )
+      {
+        return true;
+      }
+      else if ( arena->nextArena )
+      {
+        return is_part_of( arena->nextArena, ptr );
+      }
+
+      return false;
+    }
+
+    memory::Type get_memory_type( void* ptr )
+    {
+      return is_temporary( ptr ) ? Type::Temporary : is_network( ptr ) ? Type::Network : Type::General;
+    }
+
+    bool is_network( void* ptr )
+    {
+      return is_part_of( &platform->allocators.virtualMemory.network, ptr );
+    }
+
+    bool is_temporary( void* ptr )
+    {
+      return is_part_of( &platform->allocators.virtualMemory.temporary, ptr );
+    }
+
+    bool is_general( void* ptr )
+    {
+      return !is_temporary( ptr ) && !is_network( ptr );
     }
   };
 };

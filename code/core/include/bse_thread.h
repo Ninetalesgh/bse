@@ -48,6 +48,9 @@ namespace bse
       atomic32* lock;
     };
 
+    void lock( atomic32& lock );
+    void unlock( atomic32& lock );
+
     void sleep( s32 milliseconds );
 
     u32 is_current_thread( thread::Context const* );
@@ -73,19 +76,11 @@ namespace bse
 {
   namespace thread
   {
-    INLINE LockingObject::LockingObject( atomic32* lock ) : lock( lock )
-    {
-      while ( lock->compare_exchange( 1, 0 ) )
-      {
-        thread::sleep( 0 );
-      }
-    }
+    void lock_atomic( atomic32& lock ) { while ( lock.compare_exchange( 1, 0 ) ) { thread::sleep( 0 ); } }
+    void unlock_atomic( atomic32& lock ) { assert( lock ); lock.compare_exchange( 0, 1 ); }
 
-    INLINE LockingObject::~LockingObject()
-    {
-      assert( *lock );
-      lock->compare_exchange( 0, 1 );
-    }
+    INLINE LockingObject::LockingObject( atomic32* lock ) : lock( lock ) { lock_atomic( *lock ); }
+    INLINE LockingObject::~LockingObject() { unlock_atomic( *lock ); }
 
     INLINE void request_pause( thread::Context* threadContext )
     {
