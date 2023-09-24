@@ -21,7 +21,7 @@ namespace bse
     using debug_log_fn = void( debug::LogParameters const&, char const* message, s32 messageSize );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
+    ////////// Virtual Memory ////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     using allocate_virtual_memory_fn = void* (void* address, s64 size);
@@ -37,6 +37,19 @@ namespace bse
     using write_file_fn = bool( char const* filePath, void const* data, u32 size, file::WriteFlags );
     using create_directory_fn = bool( char const* directoryPath );
     using get_precompiled_asset_fn = bool( char const* name, void** out_data, u64* out_size );
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Threading /////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    using thread_create_fn = u32( bse::thread::entry_fn*, void* parameter );
+    using mutex_create_fn = void* ();
+    using mutex_destroy_fn = void( void* handle );
+    using mutex_release_fn = void( void* handle );
+    using semaphore_create_fn = void* (s32 initialCount, s32 maxCount);
+    using semaphore_destroy_fn = void( void* handle );
+    using semaphore_release_fn = s32( void* handle, s32 releaseCount );
+    using wait_for_locking_object_fn = void( void* handle, u32 waitMilliseconds );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// System ////////////////////////////////////////////////////////////////////////////////////
@@ -66,6 +79,16 @@ namespace bse
     platformcallback::write_file_fn* write_file;
     platformcallback::create_directory_fn* create_directory;
     platformcallback::get_precompiled_asset_fn* get_precompiled_asset;
+    ////////// Threading /////////////////////////////////////////////////////////////////////////////////
+    platformcallback::thread_create_fn* thread_create;
+    platformcallback::mutex_create_fn* mutex_create;
+    platformcallback::mutex_destroy_fn* mutex_destroy;
+    platformcallback::mutex_release_fn* mutex_release;
+    platformcallback::semaphore_create_fn* semaphore_create;
+    platformcallback::semaphore_destroy_fn* semaphore_destroy;
+    platformcallback::semaphore_release_fn* semaphore_release;
+    platformcallback::wait_for_locking_object_fn* wait_for_locking_object;
+
     ////////// System ////////////////////////////////////////////////////////////////////////////////////
     platformcallback::shutdown_fn* shutdown;
     opengl_ext::get_proc_address_fn* opengl_get_process_address;

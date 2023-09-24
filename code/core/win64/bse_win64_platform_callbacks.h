@@ -31,6 +31,17 @@ namespace win64
   bool get_precompiled_asset( char const* name, void** out_data, u64* out_size );
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Threading /////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  void* mutex_create();
+  void mutex_lock( void* handle, u32 waitMilliseconds );
+  void mutex_release( void* handle );
+  void* semaphore_create( s32 initialCount, s32 maxCount );
+  void semaphore_wait( void* handle, u32 waitMilliseconds );
+  s32 semaphore_release( void* handle, s32 releaseCount );
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// System ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -49,28 +60,6 @@ namespace win64
 
 namespace win64
 {
-  void register_platform_callbacks()
-  {
-    ////////// Debug /////////////////////////////////////////////////////////////////////////////////////
-    global::platform.debug_log = &debug_log;
-
-    ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
-    global::platform.allocate_virtual_memory = &allocate_virtual_memory;
-    global::platform.free_virtual_memory = &free_virtual_memory;
-    global::platform.decommit_virtual_memory = &decommit_virtual_memory;
-
-    ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
-    global::platform.get_file_info = &get_file_info;
-    global::platform.load_file_part = &load_file_part;
-    global::platform.write_file = &write_file;
-    global::platform.create_directory = &create_directory;
-    global::platform.get_precompiled_asset = &get_precompiled_asset;
-
-    ////////// System ////////////////////////////////////////////////////////////////////////////////////
-    global::platform.shutdown = &shutdown;
-    global::platform.opengl_get_process_address = &opengl_get_proc_address;
-  }
-
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Debug /////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -113,9 +102,7 @@ namespace win64
     void* result = VirtualAlloc( address, (s64) size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE );
     if ( !result )
     {
-      u32 errormsg = GetLastError();
-      log_warning( errormsg );
-      BREAK;
+      windows_error();
     }
     return result;
   }
@@ -124,9 +111,7 @@ namespace win64
   {
     if ( VirtualFree( committedMemory, size, MEM_DECOMMIT ) )
     {
-      u32 errormsg = GetLastError();
-      log_warning( errormsg );
-      BREAK;
+      windows_error();
     }
   }
 
@@ -135,9 +120,7 @@ namespace win64
     //free( allocationToFree );
     if ( !VirtualFree( allocationToFree, 0, MEM_RELEASE ) )
     {
-      u32 errormsg = GetLastError();
-      log_error( errormsg );
-      BREAK;
+      windows_error();
     }
   }
 
@@ -281,6 +264,95 @@ namespace win64
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Threading /////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  struct WindowsThreadEntryParameters
+  {
+    bse::thread::entry_fn* fn;
+    void* parameter;
+  };
+  DWORD WINAPI windows_thread_entry( LPVOID void_parameter )
+  {
+
+    return 0;
+  }
+
+  u32 thread_create( bse::thread::entry_fn* fn, void* parameter )
+  {
+    WindowsThreadEntryParameters prm;
+    prm.fn = fn;
+    prm.parameter = parameter;
+    u32 id;
+    CloseHandle( CreateThread( 0, 0, &windows_thread_entry, &prm, 0, (LPDWORD) &id ) );
+    return id;
+  }
+
+  void* mutex_create()
+  {
+    HANDLE result = CreateMutexExW( 0, 0, 0, MUTEX_ALL_ACCESS );
+    if ( !result )
+    {
+      windows_error();
+    }
+    return result;
+  }
+
+  void mutex_lock( void* handle, u32 waitMilliseconds )
+  {
+    DWORD const result = WaitForSingleObjectEx( handle, waitMilliseconds, FALSE );
+    if ( result == WAIT_FAILED )
+    {
+      windows_error();
+    }
+  }
+
+  void mutex_release( void* handle )
+  {
+    if ( !ReleaseMutex( handle ) )
+    {
+      windows_error();
+    }
+  }
+
+  void* semaphore_create( s32 initialCount, s32 maxCount )
+  {
+    HANDLE result = CreateSemaphoreExW( 0, initialCount, maxCount, nullptr, 0, SEMAPHORE_ALL_ACCESS );
+    if ( !result )
+    {
+      windows_error();
+    }
+    return result;
+  }
+
+  void wait_for_locking_object( void* handle, u32 waitMilliseconds )
+  {
+    DWORD const result = WaitForSingleObjectEx( handle, waitMilliseconds, FALSE );
+    if ( result == WAIT_FAILED )
+    {
+      windows_error();
+    }
+  }
+
+  s32 semaphore_release( void* handle, s32 releaseCount )
+  {
+    long out;
+    if ( !ReleaseSemaphore( handle, releaseCount, &out ) )
+    {
+      windows_error();
+    }
+    return s32( out );
+  }
+
+  void close_handle( void* handle )
+  {
+    if ( !CloseHandle( handle ) )
+    {
+      windows_error();
+    }
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// System ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -288,6 +360,23 @@ namespace win64
   {
     global::running = false;
   }
+
+  void* opengl_get_proc_address( char const* functionName )
+  {
+    void* p = (void*) wglGetProcAddress( functionName );
+    if ( p == 0 ||
+      (p == (void*) 0x1) || (p == (void*) 0x2) || (p == (void*) 0x3) ||
+      (p == (void*) -1) )
+    {
+      p = (void*) GetProcAddress( win64::global::openglDll, functionName );
+    }
+
+    return p;
+  }
+
+  //TODO time here
+  //GetSystemTimePreciseAsFileTime -> FILETIME //64bit value 100ns interval since 12:00 1/1/1601
+  //GetSystemTime or FileTimeToSystemTime -> SYSTEMTIME //human readable? 
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Networking ////////////////////////////////////////////////////////////////////////////////
@@ -299,4 +388,41 @@ namespace win64
   ////////// Audio /////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Register Callbacks ////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  void register_platform_callbacks()
+  {
+    ////////// Debug ///////////////////////////////////////////////////////////////////////////////////
+    global::platform.debug_log = &debug_log;
+
+    ////////// Memory //////////////////////////////////////////////////////////////////////////////////
+    global::platform.allocate_virtual_memory = &allocate_virtual_memory;
+    global::platform.free_virtual_memory = &free_virtual_memory;
+    global::platform.decommit_virtual_memory = &decommit_virtual_memory;
+
+    ////////// File IO /////////////////////////////////////////////////////////////////////////////////
+    global::platform.get_file_info = &get_file_info;
+    global::platform.load_file_part = &load_file_part;
+    global::platform.write_file = &write_file;
+    global::platform.create_directory = &create_directory;
+    global::platform.get_precompiled_asset = &get_precompiled_asset;
+
+    ////////// Threading /////////////////////////////////////////////////////////////////////////////////
+    global::platform.thread_create = &thread_create;
+    global::platform.mutex_create = &mutex_create;
+    global::platform.mutex_destroy = &close_handle;
+    global::platform.mutex_release = &mutex_release;
+    global::platform.semaphore_create = &semaphore_create;
+    global::platform.semaphore_destroy = &close_handle;
+    global::platform.semaphore_release = &semaphore_release;
+    global::platform.wait_for_locking_object = &wait_for_locking_object;
+
+    ////////// System //////////////////////////////////////////////////////////////////////////////////
+    global::platform.shutdown = &shutdown;
+    global::platform.opengl_get_process_address = &opengl_get_proc_address;
+  }
 };

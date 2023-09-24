@@ -31,6 +31,8 @@ namespace bse
 
   namespace thread
   {
+    using entry_fn = void( void* );
+
     struct Context
     {
       char const* name;

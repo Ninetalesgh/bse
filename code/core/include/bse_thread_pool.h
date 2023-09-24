@@ -2,6 +2,8 @@
 
 #include "bse_thread.h"
 
+#include <mutex>
+
 namespace bse
 {
 

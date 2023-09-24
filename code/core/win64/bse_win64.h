@@ -37,6 +37,15 @@
 constexpr s32 BSE_PATH_MAX = 1024;
 namespace win64
 {
+  void windows_error()
+  {
+    u32 errormsg = GetLastError();
+    log_error( "[WINDOWS ERROR] ", errormsg );
+    #if defined(BSE_BUILD_DEBUG)
+    BREAK;
+    #endif
+  }
+
   s32 utf8_to_wchar( char const* utf8String, wchar_t* out_wcharString, s32 wcharLengthMax )
   {
     s32 wcharLength = MultiByteToWideChar( CP_UTF8, 0, utf8String, -1, 0, 0 );
@@ -110,19 +119,6 @@ namespace win64
   INLINE float get_seconds_elapsed( LARGE_INTEGER beginCounter, LARGE_INTEGER endCounter )
   {
     return float( endCounter.QuadPart - beginCounter.QuadPart ) / float( global::performanceCounterFrequency );
-  }
-
-  void* opengl_get_proc_address( char const* functionName )
-  {
-    void* p = (void*) wglGetProcAddress( functionName );
-    if ( p == 0 ||
-      (p == (void*) 0x1) || (p == (void*) 0x2) || (p == (void*) 0x3) ||
-      (p == (void*) -1) )
-    {
-      p = (void*) GetProcAddress( win64::global::openglDll, functionName );
-    }
-
-    return p;
   }
 
   #if !defined(BSE_BUILD_SKIP_INPUT)

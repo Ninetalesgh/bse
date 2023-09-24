@@ -1,6 +1,7 @@
 #pragma once
 #include "core/include/external/bse_opengl_ext.h"
 #include "bse_win64.h"
+#include "bse_win64_platform_callbacks.h"
 
 namespace win64
 {
