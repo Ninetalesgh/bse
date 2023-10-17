@@ -112,9 +112,9 @@ namespace bse
       pointer operator->() const { return ptr; }
       reference operator[]( difference_type n ) const { return *(ptr + n); }
       iterator& operator++() { ++ptr; return *this; }
-      iterator operator++( s32 ) { iterator tmp = *this; ++ptr; return tmp; }
+      iterator operator++( int ) { iterator tmp = *this; ++ptr; return tmp; }
       iterator& operator--() { --ptr; return *this; }
-      iterator operator--( s32 ) { iterator tmp = *this; --ptr; return tmp; }
+      iterator operator--( int ) { iterator tmp = *this; --ptr; return tmp; }
       iterator& operator+=( difference_type n ) { ptr += n; return *this; }
       iterator& operator-=( difference_type n ) { ptr -= n; return *this; }
       friend bool operator==( iterator const& a, iterator const& b ) { return a.ptr == b.ptr; }

@@ -11,10 +11,10 @@ namespace bse
     INLINE void set_uniform( u32 slot, float2 const* elements, u32 elementCount = 1 ) { glUniform2fv( slot, GLsizei( elementCount ), (float*) elements ); }
     INLINE void set_uniform( u32 slot, float3 const* elements, u32 elementCount = 1 ) { glUniform3fv( slot, GLsizei( elementCount ), (float*) elements ); }
     INLINE void set_uniform( u32 slot, float4 const* elements, u32 elementCount = 1 ) { glUniform4fv( slot, GLsizei( elementCount ), (float*) elements ); }
-    INLINE void set_uniform( u32 slot, s32 const* elements, u32 elementCount = 1 ) { glUniform1iv( slot, GLsizei( elementCount ), elements ); }
-    INLINE void set_uniform( u32 slot, int2 const* elements, u32 elementCount = 1 ) { glUniform2iv( slot, GLsizei( elementCount ), (s32*) elements ); }
-    INLINE void set_uniform( u32 slot, int3 const* elements, u32 elementCount = 1 ) { glUniform3iv( slot, GLsizei( elementCount ), (s32*) elements ); }
-    INLINE void set_uniform( u32 slot, int4 const* elements, u32 elementCount = 1 ) { glUniform4iv( slot, GLsizei( elementCount ), (s32*) elements ); }
+    INLINE void set_uniform( u32 slot, int const* elements, u32 elementCount = 1 ) { glUniform1iv( slot, GLsizei( elementCount ), elements ); }
+    INLINE void set_uniform( u32 slot, int2 const* elements, u32 elementCount = 1 ) { glUniform2iv( slot, GLsizei( elementCount ), (int*) elements ); }
+    INLINE void set_uniform( u32 slot, int3 const* elements, u32 elementCount = 1 ) { glUniform3iv( slot, GLsizei( elementCount ), (int*) elements ); }
+    INLINE void set_uniform( u32 slot, int4 const* elements, u32 elementCount = 1 ) { glUniform4iv( slot, GLsizei( elementCount ), (int*) elements ); }
   };
 };
 

@@ -267,24 +267,10 @@ namespace win64
   ////////// Threading /////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  struct WindowsThreadEntryParameters
+  bse::thread::ID thread_create( bse::thread::entry_fn* fn, void* parameter )
   {
-    bse::thread::entry_fn* fn;
-    void* parameter;
-  };
-  DWORD WINAPI windows_thread_entry( LPVOID void_parameter )
-  {
-
-    return 0;
-  }
-
-  u32 thread_create( bse::thread::entry_fn* fn, void* parameter )
-  {
-    WindowsThreadEntryParameters prm;
-    prm.fn = fn;
-    prm.parameter = parameter;
-    u32 id;
-    CloseHandle( CreateThread( 0, 0, &windows_thread_entry, &prm, 0, (LPDWORD) &id ) );
+    bse::thread::ID id;
+    CloseHandle( CreateThread( 0, 0, fn, parameter, 0, (LPDWORD) &id ) );
     return id;
   }
 

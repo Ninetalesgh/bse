@@ -79,7 +79,7 @@ namespace win64
     {
       static OpenGlInfo info;
       static u32 defaultTextureFormat;
-      static s32 rcAttributes[] =
+      static int rcAttributes[] =
       {
         WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
         WGL_CONTEXT_MINOR_VERSION_ARB, 0,
@@ -102,11 +102,11 @@ namespace win64
 
     s32 set_pixel_format_for_dc( HDC deviceContext )
     {
-      s32 suggestedPixelFormatIndex = 0;
+      int suggestedPixelFormatIndex = 0;
 
       if ( wglChoosePixelFormatARB )
       {
-        s32 intAttribList[] =
+        int intAttribList[] =
         {
           WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
           WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
@@ -126,7 +126,7 @@ namespace win64
         0 };
         //TODO this doesn't give me any alpha bits and alpha shift, whereas the non wgl call does?
         float floatAttribList[] = { 0 };
-        u32 extendedPick = 0;
+        UINT extendedPick = 0;
         wglChoosePixelFormatARB( deviceContext, intAttribList, floatAttribList, 1, &suggestedPixelFormatIndex, &extendedPick );
       }
       else

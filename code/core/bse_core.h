@@ -42,7 +42,7 @@ namespace bse
     ////////// Threading /////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    using thread_create_fn = u32( bse::thread::entry_fn*, void* parameter );
+    using thread_create_fn = thread::ID( thread::entry_fn*, void* parameter );
     using mutex_create_fn = void* ();
     using mutex_destroy_fn = void( void* handle );
     using mutex_release_fn = void( void* handle );

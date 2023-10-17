@@ -12,13 +12,14 @@ namespace bse
   ///// hot reloads, hence this mess.                                ///////////////////////////////////
   ///// Scroll down for register_function() and make_function().     ///////////////////////////////////
   ///// You want to call register_function of your functions         ///////////////////////////////////
-  ///// on load and keep them in order,                              ///////////////////////////////////
+  ///// on dll load and keep them in order if you add new ones,      ///////////////////////////////////
   ///// in the release build this is all compiled away.              ///////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   #if defined(BSE_BUILD_DEBUG_DEVELOPMENT)
   struct _StaticFunctionTypeRegister
   {
+    //this linked list might not be necessary, but for now it keeps all types together and might make debugging easier
     static _StaticFunctionTypeRegister& get() { static _StaticFunctionTypeRegister instance; return instance; }
     _StaticFunctionTypeRegister* next;
     constexpr static s32 MAX_POINTERS_PER_TYPE = 128;
@@ -47,7 +48,7 @@ namespace bse
       s32 ptrCount;
       Signature ptrs[MAX_POINTERS_PER_TYPE];
       Signature get_ptr_by_index( s32 index ) { assert( index < ptrCount );  return ptrs[index]; }
-      s32 add_ptr( Signature _ptr ) { ptrs[ptrCount] = _ptr; return ptrCount++; }
+      s32 add_ptr( Signature _ptr ) { assert( ptrCount < MAX_POINTERS_PER_TYPE ); ptrs[ptrCount] = _ptr; return ptrCount++; }
       s32 get_index_for_ptr( Signature _ptr ) { for ( s32 i = 0; i < ptrCount; ++i ) { if ( ptrs[i] == _ptr ) return i; } BREAK; return add_ptr( _ptr ); }
     };
     static _TypeRegister& get_type_register() { static _TypeRegister instance; return instance; }

@@ -31,13 +31,15 @@ namespace bse
 
   namespace thread
   {
-    using entry_fn = void( void* );
+    using ID = u32;
+    using EntryFunctionReturnType = unsigned long;
+    using entry_fn = EntryFunctionReturnType BSEAPI( void* );
 
     struct Context
     {
       char const* name;
 
-      u32 id;
+      thread::ID id;
       atomic32 requestPause;
       atomic32 isPaused;
     };
