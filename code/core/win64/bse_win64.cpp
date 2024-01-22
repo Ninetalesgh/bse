@@ -5,7 +5,7 @@
 LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wParam, LPARAM lParam );
 
 void bse_win64_loop();
-int bse_init( int argc, char** argv );
+int bse_win64_init( int argc, char** argv );
 
 int bse_main( int argc, char** argv )
 {
@@ -13,7 +13,7 @@ int bse_main( int argc, char** argv )
   ////////// Init //////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  if ( !bse_init( argc, argv ) )
+  if ( !bse_win64_init( argc, argv ) )
   {
     return 0;
   }
@@ -41,7 +41,7 @@ int bse_main( int argc, char** argv )
 }
 
 void bse_win64_init_core();
-int bse_init( int argc, char** argv )
+int bse_win64_init( int argc, char** argv )
 {
   char stack[BSE_STACK_BUFFER_MEDIUM];
   s32 result = 1;
@@ -86,7 +86,7 @@ int bse_init( int argc, char** argv )
       , bse::platform->info.virtualMemoryPageSize - sizeof( bse::memory::Multipool ), 16
       , bse::memory::AllocatorPolicyFlags::AllowGrowth | bse::memory::AllocatorPolicyFlags::GeometricGrowth | bse::memory::AllocatorPolicyFlags::ThreadSafe );
 
-    constexpr s64 sizePerFrame = GigaBytes( 1 ) - sizeof( bse::memory::Arena );
+    constexpr s64 sizePerFrame = MegaBytes( 1 ) - sizeof( bse::memory::Arena );
 
     for ( s32 i = 0; i < array_count( bse::platform->allocators.temporary ); ++i )
     {
@@ -255,7 +255,6 @@ void bse_win64_loop()
         float secondsElapsedIncludingSleep =  win64::get_seconds_elapsed( beginCounter, win64::get_timer() );
         float const delta = 1000.0f * (spfTarget - secondsElapsedIncludingSleep);
         sleepMsSubtraction += min( 0.f, delta ) - (delta > 2.0f) * 1.0f;
-
 
         //   log_info( "[WIN32_CLOCK] frame ", win64::global::bseCoreData.currentFrameIndex, " had ", delta, " ms left after sleeping for ", max( msSleep, 0.f ),
         //                                        " ms\n - - - next sleep reduced by ", -sleepMsSubtraction, " ms\n" );

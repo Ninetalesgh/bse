@@ -58,9 +58,8 @@ namespace bse
       //If unset container will grow linearly.
       GeometricGrowth = 0b10,
       //
-      //Only implemented for Arena currently
       //If set container is thread safe
-      //If unset container is faster, but should be used with multithreading behaviour in mind
+      //If unset container is faster, but should be used with that in mind
       ThreadSafe = 0b100,
     };
     BSE_DEFINE_ENUM_OPERATORS_U16( AllocatorPolicyFlags );

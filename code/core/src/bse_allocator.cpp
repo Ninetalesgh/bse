@@ -221,7 +221,8 @@ namespace bse
 
       if ( result + size > arena->begin + arena->size )
       {
-        if ( flags_contain( arena->policy, AllocatorPolicyFlags::AllowGrowth ) )
+        BREAK;
+        if ( !arena->nextArena && flags_contain( arena->policy, AllocatorPolicyFlags::AllowGrowth ) )
         {
           s64 nextSize = flags_contain( arena->policy, AllocatorPolicyFlags::GeometricGrowth ) ? 2 * arena->size : arena->size;
           arena->nextArena = new_arena( arena->parent, nextSize, arena->policy );
@@ -642,8 +643,8 @@ namespace bse
 
       AllocatorPolicyFlags policy = AllocatorPolicyFlags::ThreadSafe | AllocatorPolicyFlags::AllowGrowth;
 
-      s64 total = networkSize + temporarySize + generalSize;
-      s64 end = total / s64( platform->info.virtualMemoryPageSize );
+      //s64 total = networkSize + temporarySize + generalSize;
+      //s64 end = total / s64( platform->info.virtualMemoryPageSize );
 
       char* pointer = nullptr;
       assert( platform->info.virtualMemoryAddressEnd - platform->info.virtualMemoryAddressBegin > networkSize + temporarySize + generalSize );

@@ -20,7 +20,11 @@ namespace bse
 
   //returns 1 if the strings match including null termination
   //returns 0 if they don't
-  u32 string_match( char const* a, char const* b );
+  bool string_match( char const* a, char const* b );
+
+  //returns 1 if string begins with subString
+  //returns 0 if they don't
+  bool string_begins_with( char const* string, char const* subString );
 
   //returns destination
   char* string_copy( char* destination, char const* origin, s32 capacity );
@@ -424,24 +428,47 @@ namespace bse
     return result;
   }
 
-  INLINE u32 string_match( char const* a, char const* b )
+  INLINE bool string_match( char const* a, char const* b )
   {
     if ( a == nullptr || b == nullptr )
     {
       return 0;
     }
 
-    u32 result = 0;
+    bool result = false;
     while ( *a == *b )
     {
       if ( *a == '\0' )
       {
-        result = 1;
+        result = true;
         break;
       }
 
       ++a;
       ++b;
+    }
+
+    return result;
+  }
+
+  INLINE bool string_begins_with( char const* string, char const* subString )
+  {
+    if ( string == nullptr || subString == nullptr )
+    {
+      return 0;
+    }
+
+    bool result = 0;
+    while ( *string == *subString )
+    {
+      if ( *subString == '\0' )
+      {
+        result = true;
+        break;
+      }
+
+      ++string;
+      ++subString;
     }
 
     return result;

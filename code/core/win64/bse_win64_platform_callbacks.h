@@ -97,8 +97,23 @@ namespace win64
 
   void* allocate_virtual_memory( void* address, s64 size )
   {
-    debug_log_info( "Reserving ", size, " Bytes of virtual Memory." );
-    // return malloc( size );
+    if ( size > MegaBytes( 1 ) )
+    {
+      s64 MBs = 1 + size / MegaBytes( 1 );
+
+      debug_log_info( "Reserving ", MBs, " MegaBytes of virtual Memory." );
+    }
+    else if ( size > KiloBytes( 1 ) )
+    {
+      s64 KBs = 1 + size / KiloBytes( 1 );
+
+      debug_log_info( "Reserving ", KBs, " KiloBytes of virtual Memory." );
+    }
+    else
+    {
+      debug_log_info( "Reserving ", size, " Bytes of virtual Memory." );
+    }
+
     void* result = VirtualAlloc( address, (s64) size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE );
     if ( !result )
     {
