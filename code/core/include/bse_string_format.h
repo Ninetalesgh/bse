@@ -18,12 +18,16 @@ namespace bse
   //returns the number of utf8 characters until a \n or a \0, including it
   s32 string_line_length_utf8( char const* utf8String );
 
-  //returns 1 if the strings match until the end of either
+  //returns 1 if the strings match including null termination
   //returns 0 if they don't
   u32 string_match( char const* a, char const* b );
 
   //returns destination
-  char* string_copy( char* destination, char const* origin, s32 size );
+  char* string_copy( char* destination, char const* origin, s32 capacity );
+
+  //returns destination
+  //copy until character is hit
+  char* string_copy_until( char* destination, char const* origin, s32 capacity, char until );
 
   //replaces all of target with replacement
   void string_replace_char( char* str, char target, char replacement );
@@ -440,19 +444,30 @@ namespace bse
       ++b;
     }
 
-    if ( *b == '\0' )
-    {
-      result = 1;
-    }
-
     return result;
   }
 
-  INLINE char* string_copy( char* destination, char const* origin, s32 size )
+  INLINE char* string_copy( char* destination, char const* origin, s32 capacity )
   {
-    for ( s32 i = 0; i < size; ++i )
+    for ( s32 i = 0; i < capacity; ++i )
     {
       destination[i] = origin[i];
+    }
+    return destination;
+  }
+
+  INLINE char* string_copy_until( char* destination, char const* origin, s32 capacity, char until )
+  {
+    for ( s32 i = 0; i < capacity; ++i )
+    {
+      if ( origin[i] != until )
+      {
+        destination[i] = origin[i];
+      }
+      else
+      {
+        break;
+      }
     }
     return destination;
   }
