@@ -7,7 +7,7 @@ set bat_path=%~dp0
 
 set build_config=build-configuration:
 set app_path=""
-set out_file=
+set out_name=
 set out_path=
 
 IF "%~1"=="build" SHIFT
@@ -31,15 +31,15 @@ IF NOT "%~0"=="" (
   IF "%~0"=="-app" (
     IF NOT "%~1"=="" (
       set app_path="%~1"
-      IF "%out_file%"=="" set out_file=%~n1
-      IF "%out_path%"=="" set out_path=%~dp1
+      IF "%out_name%"=="" set out_name=%~n1
+      IF "%out_path%"=="" set out_path=%~dp1..\..\build\%~n1
       SHIFT
     )
     goto loop_parse_parameters
   )
   IF "%~0"=="-f" (
     IF NOT "%~1"=="" (
-      set out_file=%~n1
+      set out_name=%~n1
       SHIFT
     )
   )
@@ -65,9 +65,11 @@ goto loop_parse_parameters
 @REM   )
 @REM )
 
+echo %out_path%
+
 IF %build_config%==build-configuration: set build_config=%build_config%-debug-development-release 
-IF "%out_file%"=="" set out_file=bse
-IF "%out_path%"=="" ( set out_path=%bat_path%..\build ) ELSE set out_path=%out_path%build
+IF "%out_name%"=="" set out_name=bse
+IF "%out_path%"=="" ( set out_path=%bat_path%..\build )
 
 echo --------------------------------------------------------------
 echo %build_config:-= %
@@ -77,7 +79,7 @@ IF %app_path%=="" (
 ) ELSE (
   echo app path - - - - - : %app_path%
 )
-echo output filename- - : %out_file%
+echo output build name- - : %out_name%
 echo --------------------------------------------------------------
 
 IF NOT EXIST "%out_path%" mkdir "%out_path%"
@@ -117,8 +119,8 @@ set app_exports=/EXPORT:core_initialize_internal /EXPORT:core_on_reload_internal
   del *.pdb > NUL 2> NUL
 
   set compiler_options_debug=%compiler_options% /Z7 /Od /DBSE_BUILD_DEBUG
-  cl /LD %code_path%\core\bse_core.cpp %compiler_options_debug% /Fe:bse_core.dll /Fmbse_core.map %linker_options% %app_exports% /PDB:"%out_file%_%random%.pdb"
-  cl     %code_path%\bse_main.cpp /Fe:"%out_file%_debug.exe" %compiler_options_debug% %linker_options% 
+  cl /LD %code_path%\core\bse_core.cpp %compiler_options_debug% /Fe:bse_core.dll /Fmbse_core.map %linker_options% %app_exports% /PDB:"%out_name%_%random%.pdb"
+  cl     %code_path%\bse_main.cpp /Fe:"%out_name%_debug.exe" %compiler_options_debug% %linker_options% 
   echo --------------------------------------------------------------
   popd
 :skip_build_debug
@@ -134,7 +136,7 @@ set app_exports=/EXPORT:core_initialize_internal /EXPORT:core_on_reload_internal
 
   set compiler_options_development=%compiler_options% /Od /DBSE_BUILD_DEVELOPMENT
   cl /LD %code_path%\core\bse_core.cpp %compiler_options_development% /Fe:bse_core.dll %linker_options% %app_exports%
-  cl     %code_path%\bse_main.cpp /Fe:"%out_file%_develop.exe" %compiler_options_development% %linker_options% 
+  cl     %code_path%\bse_main.cpp /Fe:"%out_name%_develop.exe" %compiler_options_development% %linker_options% 
   echo --------------------------------------------------------------
   popd
 :skip_build_develop
@@ -148,7 +150,7 @@ set app_exports=/EXPORT:core_initialize_internal /EXPORT:core_on_reload_internal
   pushd release
 
   set compiler_options_release=%compiler_options% /Ox
-  cl %code_path%\bse_main.cpp /Fe:"%out_file%.exe" %compiler_options_release% %linker_options% 
+  cl %code_path%\bse_main.cpp /Fe:"%out_name%.exe" %compiler_options_release% %linker_options% 
   
   del *.obj > NUL 2> NUL
   echo --------------------------------------------------------------

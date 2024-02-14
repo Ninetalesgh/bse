@@ -100,13 +100,11 @@ namespace win64
     if ( size > MegaBytes( 1 ) )
     {
       s64 MBs = 1 + size / MegaBytes( 1 );
-
       debug_log_info( "Reserving ", MBs, " MegaBytes of virtual Memory." );
     }
     else if ( size > KiloBytes( 1 ) )
     {
       s64 KBs = 1 + size / KiloBytes( 1 );
-
       debug_log_info( "Reserving ", KBs, " KiloBytes of virtual Memory." );
     }
     else
