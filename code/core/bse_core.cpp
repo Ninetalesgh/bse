@@ -5,6 +5,14 @@ void initialize( bse::PlatformInitParams* );
 void on_reload();
 void tick();
 
+#if defined(BSE_BUILD_APP_PATH)
+#include _STRINGIZE(BSE_BUILD_APP_PATH)
+#else
+//include devenv here?
+void initialize( bse::PlatformInitParams* ) { log_info( "Initialized nothing." ); }
+void on_reload() { log_info( "Reloaded nothing." ); }
+void tick() { log_info( "ticked nothing. dt: ", bse::platform->thisFrame.deltaTime, "\n- frame index: ", bse::platform->thisFrame.frameIndex ); }
+#endif
 
 namespace bse
 {
@@ -35,11 +43,3 @@ namespace bse
   Platform* platform;
 };
 
-#if defined(BSE_BUILD_APP_PATH)
-#include _STRINGIZE(BSE_BUILD_APP_PATH)
-#else
-//include devenv here?
-void initialize( bse::PlatformInitParams* ) { log_info( "Initialized nothing." ); }
-void on_reload() { log_info( "Reloaded nothing." ); }
-void tick() { log_info( "ticked nothing. dt: ", bse::platform->thisFrame.deltaTime, "\n- frame index: ", bse::platform->thisFrame.frameIndex ); }
-#endif

@@ -1,15 +1,15 @@
 #pragma once
 
 #include "bse_file.h"
-#include "bse_container.h"
+//#include "bse_container.h"
 
 namespace bse
 {
   struct VirtualFileSystem;
 
-  [[nodiscard]] VirtualFileSystem* new_virtual_file_system( memory::Allocator* allocator );
-  [[nodiscard]] VirtualFileSystem* new_virtual_file_system( memory::Allocator* allocator, Array<String> const& mountedPaths );
-  void delete_virtual_file_system( VirtualFileSystem* );
+  // [[nodiscard]] VirtualFileSystem* new_virtual_file_system( memory::Allocator* allocator );
+  // [[nodiscard]] VirtualFileSystem* new_virtual_file_system( memory::Allocator* allocator, Array<String> const& mountedPaths );
+  // void delete_virtual_file_system( VirtualFileSystem* );
 
 
 

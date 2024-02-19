@@ -14,8 +14,8 @@ namespace bse
 
   struct VirtualFileSystem
   {
-    Array<String> mountedPaths;
-    Array<File*> loadedFiles;
+    //    Array<String> mountedPaths;
+     //   Array<File*> loadedFiles;
   };
 
   // [[nodiscard]] VirtualFileSystem* new_virtual_file_system( memory::Allocator* allocator, Array<String> const& mountedPaths );

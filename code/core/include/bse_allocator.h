@@ -249,5 +249,28 @@ namespace bse
       Arena network;
       Arena temporary;
     };
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Allocator proxy for STD Container Wrappers ////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    template<typename T>
+    struct AllocatorProxy
+    {
+      using value_type = T;
+      using propagate_on_container_move_assignment = std::true_type;
+      using is_always_equal = std::true_type;
+
+      AllocatorProxy() noexcept {}
+      ~AllocatorProxy() noexcept {}
+      AllocatorProxy( AllocatorProxy const& ) noexcept {}
+      template<typename U> AllocatorProxy( AllocatorProxy<U> const& ) noexcept {}
+
+      void deallocate( T* ptr, s64 size ) { free_thread_safe( ptr, size ); }
+      T* allocate( s64 size ) { return (T*) allocate_thread_safe( size ); }
+    };
+    template<typename T> bool operator ==( AllocatorProxy<T> const&, AllocatorProxy<T> const& ) { return true; }
+    template<typename T> bool operator !=( AllocatorProxy<T> const&, AllocatorProxy<T> const& ) { return false; }
+
   };
 };

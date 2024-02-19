@@ -1229,6 +1229,8 @@ namespace opengl_ext
   using glDisableVertexAttribArray = void   BSE_OGLAPI( GLuint index );
   using glEnableVertexAttribArray  = void   BSE_OGLAPI( GLuint index );
   using glGenBuffers               = void   BSE_OGLAPI( GLsizei n, GLuint* buffers );
+  using glGetActiveAttrib          = void   BSE_OGLAPI( GLuint program, GLuint index, GLsizei bufSize, GLsizei* length, GLint* size, GLenum* type, GLchar* name );
+  using glGetAttribLocation        = GLint  BSE_OGLAPI( GLuint program, const GLchar* name );
   using glGetActiveUniform         = void   BSE_OGLAPI( GLuint program, GLuint index, GLsizei bufSize, GLsizei* length, GLint* size, GLenum* type, GLchar* name );
   using glGetUniformLocation       = GLint  BSE_OGLAPI( GLuint program, const GLchar* name );
   using glGetUniformfv             = void   BSE_OGLAPI( GLuint program, GLint location, GLfloat* params );
@@ -1669,6 +1671,8 @@ BSE_DEFINE_GL( glVertexAttribPointer );
 BSE_DEFINE_GL( glDisableVertexAttribArray );
 BSE_DEFINE_GL( glEnableVertexAttribArray );
 BSE_DEFINE_GL( glGenBuffers );
+BSE_DEFINE_GL( glGetActiveAttrib );
+BSE_DEFINE_GL( glGetAttribLocation );
 BSE_DEFINE_GL( glGetActiveUniform );
 BSE_DEFINE_GL( glGetUniformLocation );
 BSE_DEFINE_GL( glGetUniformfv );
@@ -2147,6 +2151,8 @@ namespace opengl_ext
     BSE_INIT_GL( glDisableVertexAttribArray );
     BSE_INIT_GL( glEnableVertexAttribArray );
     BSE_INIT_GL( glGenBuffers );
+    BSE_INIT_GL( glGetActiveAttrib );
+    BSE_INIT_GL( glGetAttribLocation );
     BSE_INIT_GL( glGetActiveUniform );
     BSE_INIT_GL( glGetUniformLocation );
     BSE_INIT_GL( glGetUniformfv );

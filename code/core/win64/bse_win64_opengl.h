@@ -234,8 +234,8 @@ namespace win64
         wglSwapIntervalEXT( 1 );
       }
 
-      glEnable( GL_DEPTH_TEST );
-      glDepthFunc( GL_LESS );
+      //glEnable( GL_DEPTH_TEST );
+      //glDepthFunc( GL_LESS );
 
       float4 bg = color::float4_from_rgba( color::rgba( 30, 30, 30, 255 ) );
       glClearColor( bg.x * bg.x, bg.y * bg.y, bg.z * bg.z, bg.w );

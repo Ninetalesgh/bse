@@ -60,6 +60,7 @@ namespace bse
     INLINE ReturnType operator()( Args... args ) const
     {
       #if defined(BSE_BUILD_DEBUG_DEVELOPMENT)
+      //TODO get right module via moduleId here
       Signature actualPtr = get_type_register().get_ptr_by_index( hotReloadIndex );
       return std::invoke( actualPtr, std::forward<Args>( args )... );
       #else
@@ -103,6 +104,7 @@ namespace bse
     INLINE ReturnType operator()( T* obj, Args... args ) const
     {
       #if defined(BSE_BUILD_DEBUG_DEVELOPMENT)
+      //TODO get right module via moduleId here
       Signature actualPtr = get_type_register().get_ptr_by_index( hotReloadIndex );
       return std::invoke( actualPtr, std::forward<T*>( obj ), std::forward<Args>( args )... );
       #else
@@ -139,7 +141,7 @@ namespace bse
       ptr = (Signature) func;
       #if defined(BSE_BUILD_DEBUG_DEVELOPMENT)
       hotReloadIndex = Super::get_type_register().get_index_for_ptr( ptr );
-      //moduleId = 
+      //moduleId = TODO
       #endif
     }
 
@@ -149,7 +151,7 @@ namespace bse
       ptr = (Signature) func;
       #if defined(BSE_BUILD_DEBUG_DEVELOPMENT)
       hotReloadIndex = Super::get_type_register().get_index_for_ptr( ptr );
-      //moduleId = 
+      //moduleId = TODO
       #endif
       return *this;
     }

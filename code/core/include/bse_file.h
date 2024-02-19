@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bse_common.h"
+#include "bse_container.h"
 
 namespace bse
 {
@@ -20,5 +21,9 @@ namespace bse
       //Overwrite an existing file or fail if none exists
       OverwriteOrFail = 0x2,
     };
+
+    [[nodiscard]]
+    Buffer load( char const* filePath );
+    void unload( Buffer& buffer );
   };
 };

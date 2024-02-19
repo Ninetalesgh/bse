@@ -25,7 +25,7 @@ namespace win64
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   bool get_file_info( char const* filePath, bse::file::Info* out_fileInfo );
-  bool load_file_part( char const* filePath, u64 readOffset, void* targetBuffer, u32 bufferSize );
+  bool load_file_part( char const* filePath, u64 readOffset, void* targetBuffer, s64 bufferSize );
   bool write_file( char const* filePath, void const* data, u32 size, bse::file::WriteFlags flags );
   bool create_directory( char const* directoryPath );
   bool get_precompiled_asset( char const* name, void** out_data, u64* out_size );
@@ -166,12 +166,14 @@ namespace win64
     return result;
   }
 
-  bool load_file_part( char const* filePath, u64 readOffset, void* targetBuffer, u32 bufferSize )
+  bool load_file_part( char const* filePath, u64 readOffset, void* targetBuffer, s64 bufferSize )
   {
     if ( readOffset )
     {
       BREAK; //TODO
     }
+
+    DWORD bytesToRead = bufferSize > (s64) U32_MAX ? U32_MAX : (u32) bufferSize;
 
     bool result = false;
     if ( targetBuffer )
@@ -187,7 +189,7 @@ namespace win64
       if ( fileHandle != INVALID_HANDLE_VALUE )
       {
         DWORD bytesRead;
-        if ( ReadFile( fileHandle, targetBuffer, bufferSize, &bytesRead, 0 ) )
+        if ( ReadFile( fileHandle, targetBuffer, bytesToRead, &bytesRead, 0 ) )
         {
           result = true;
         }

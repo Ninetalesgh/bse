@@ -65,21 +65,19 @@ goto loop_parse_parameters
 @REM   )
 @REM )
 
-echo %out_path%
-
 IF %build_config%==build-configuration: set build_config=%build_config%-debug-development-release 
 IF "%out_name%"=="" set out_name=bse
 IF "%out_path%"=="" ( set out_path=%bat_path%..\build )
 
 echo --------------------------------------------------------------
 echo %build_config:-= %
-echo %app_path%
+
 IF %app_path%=="" (
   echo app path - - - - - : no -app parameter given, building core only
 ) ELSE (
-  echo app path - - - - - : %app_path%
+  echo app path - - - - - : %app_path:"=%
 )
-echo output build name- - : %out_name%
+echo output build name- : %out_name%
 echo --------------------------------------------------------------
 
 IF NOT EXIST "%out_path%" mkdir "%out_path%"

@@ -8,13 +8,14 @@
 #include "bse_function.h"
 #include "bse_container.h"
 #include "bse_thread.h"
+#include "bse_file.h"
 #include "bse_virtual_file_system.h"
 #include "bse_string_format.h"
 #include "bse_color.h"
 #include "bse_thread_pool.h"
 
-# include "bse_input.h"
-# include "bse_image.h"
-# include "bse_opengl.h"
+#include "bse_input.h"
+#include "bse_graphics.h"
+#include "bse_opengl.h"
 
 #include "bse_unsorted_definitions.h"

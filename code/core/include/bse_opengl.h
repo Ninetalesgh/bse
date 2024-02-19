@@ -7,6 +7,8 @@ namespace bse
 {
   namespace opengl
   {
+    void check_gl_error();
+
     INLINE void set_uniform( u32 slot, float const* elements, u32 elementCount = 1 ) { glUniform1fv( slot, GLsizei( elementCount ), elements ); }
     INLINE void set_uniform( u32 slot, float2 const* elements, u32 elementCount = 1 ) { glUniform2fv( slot, GLsizei( elementCount ), (float*) elements ); }
     INLINE void set_uniform( u32 slot, float3 const* elements, u32 elementCount = 1 ) { glUniform3fv( slot, GLsizei( elementCount ), (float*) elements ); }
@@ -23,113 +25,156 @@ namespace bse
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#if 0
+
 namespace bse
 {
   namespace opengl
   {
-    //DO THESE WORK????
-    float4 create_projector( float viewportWidth, float viewportHeight, float fovRadians, float zNear, float zFar )
+    void check_gl_error()
     {
-      float tanHalfFovx = 1.0f / tanf( fovRadians * 0.5f );
-      float aspectRatio = viewportWidth / viewportHeight;
-      float z = zFar / (zFar - zNear);
-
-      return float4 { tanHalfFovx, aspectRatio, z, zNear };
+      GLenum err;
+      while ( (err = glGetError()) != GL_NO_ERROR )
+      {
+        switch ( err )
+        {
+          case GL_INVALID_ENUM:
+          {
+            BREAK;
+            break;
+          }
+          case GL_INVALID_VALUE:
+          {
+            BREAK;
+            break;
+          }
+          case GL_INVALID_OPERATION:
+          {
+            BREAK;
+            break;
+          }
+          case GL_STACK_OVERFLOW:
+          {
+            BREAK;
+            break;
+          }
+          case GL_STACK_UNDERFLOW:
+          {
+            BREAK;
+            break;
+          }
+          case GL_OUT_OF_MEMORY:
+          {
+            BREAK;
+            break;
+          }
+          default:
+          {
+            //??
+            BREAK;
+          }
+        }
+      }
     }
 
-    float4 project_to_viewport( float4 p, float4 projector )
+    struct OGLFileData
     {
-      float4 result {};
-      result.x = p.z * projector.x;
-      result.y = p.y * projector.y * projector.x;
-      //p.w useful here? isn't it expected to be 1? 
-      result.z = p.x * projector.z - p.w * projector.z * projector.w;
-      result.w = p.x;
-      return result;
+      char const* data;
+      s64 size;
+    };
+
+    bool validate_shader( GLuint shaderHandle )
+    {
+      constexpr s32 MAX_INFO_LOG_LENGTH = 8192;
+      char infoLog[MAX_INFO_LOG_LENGTH];
+      GLint result = GL_FALSE;
+      s32 infoLogLength = 0;
+      glGetShaderiv( shaderHandle, GL_COMPILE_STATUS, &result );
+      if ( result != GL_TRUE )
+      {
+        glGetShaderiv( shaderHandle, GL_INFO_LOG_LENGTH, &infoLogLength );
+        glGetShaderInfoLog( shaderHandle, min( infoLogLength, MAX_INFO_LOG_LENGTH ), NULL, infoLog );
+        log_error( "[OGL] Errors: \n", infoLog );
+        BREAK;
+      }
+      return result == GL_TRUE;
     }
 
-    float4 project_to_viewport( float4 p, float viewportWidth, float viewportHeight, float fovRadians, float zNear, float zFar )
+    bool validate_program( GLuint programHandle )
     {
-      float tanHalfFovx = 1.0f / tanf( fovRadians * 0.5f );
-      float aspectRatio = viewportWidth / viewportHeight;
-      float z = zFar / (zFar - zNear);
-
-
-      float4 result {};
-      result.x = p.z * tanHalfFovx;
-      result.y = p.y * aspectRatio * tanHalfFovx;
-      //p.w useful here? isn't it expected to be 1? 
-      result.z = p.x * z - p.w * z * zNear;
-      result.w = p.x;
-
-      return result;
+      constexpr s32 MAX_INFO_LOG_LENGTH = 8192;
+      char infoLog[MAX_INFO_LOG_LENGTH];
+      GLint result = GL_FALSE;
+      s32 infoLogLength = 0;
+      glGetProgramiv( programHandle, GL_LINK_STATUS, &result );
+      if ( result != GL_TRUE )
+      {
+        glGetProgramiv( programHandle, GL_INFO_LOG_LENGTH, &infoLogLength );
+        glGetProgramInfoLog( programHandle, min( infoLogLength, MAX_INFO_LOG_LENGTH ), NULL, infoLog );
+        log_error( "[OGL] Errors: \n", infoLog );
+        BREAK;
+      }
+      return result == GL_TRUE;
     }
 
-
-
-    void set_texture( u32 gpuHandle, u32 uniformIndex, u32 textureIndex ) { glActiveTexture( GL_TEXTURE0 + textureIndex ); glBindTexture( GL_TEXTURE_2D, gpuHandle ); glUniform1i( uniformIndex, textureIndex ); }
-    void unset_texture( u32 textureIndex ) { glActiveTexture( GL_TEXTURE0 + textureIndex ); glBindTexture( GL_TEXTURE_2D, 0 ); glActiveTexture( GL_TEXTURE0 ); }
-
-    bse::ShaderProgramID create_shader_program( OGLFileData headerFileData, OGLFileData vsFileData, OGLFileData fsFileData )
+    GLuint create_shader_program( OGLFileData headerFileData, OGLFileData vsFileData, OGLFileData fsFileData )
     {
       // log_info( "[OGL] Compiling shader." );
 
       GLint shaderCodeLengths[] = { (s32) headerFileData.size, (s32) vsFileData.size };
 
-      ShaderID vsID = glCreateShader( GL_VERTEX_SHADER );
+      GLuint vs = glCreateShader( GL_VERTEX_SHADER );
       GLchar const* vsCode[] =
       {
         (char const*) headerFileData.data,
         (char const*) vsFileData.data
       };
-      glShaderSource( vsID, array_count( vsCode ), vsCode, shaderCodeLengths );
-      glCompileShader( vsID );
+      glShaderSource( vs, array_count( vsCode ), vsCode, shaderCodeLengths );
+      glCompileShader( vs );
 
-      if ( !validate_shader( vsID ) )
+      if ( !validate_shader( vs ) )
       {
         BREAK;
       }
 
       shaderCodeLengths[1] = (s32) fsFileData.size;
 
-      ShaderID fsID = glCreateShader( GL_FRAGMENT_SHADER );
+      GLuint fs = glCreateShader( GL_FRAGMENT_SHADER );
       GLchar const* fsCode[] =
       {
         (char const*) headerFileData.data,
         (char const*) fsFileData.data
       };
-      glShaderSource( fsID, array_count( fsCode ), fsCode, shaderCodeLengths );
-      glCompileShader( fsID );
+      glShaderSource( fs, array_count( fsCode ), fsCode, shaderCodeLengths );
+      glCompileShader( fs );
 
-      if ( !validate_shader( fsID ) )
+      if ( !validate_shader( fs ) )
       {
         BREAK;
       }
 
       //  log_info( "[OGL] Linking program." );
 
-      GLuint programID = glCreateProgram();
-      glAttachShader( programID, vsID );
-      glAttachShader( programID, fsID );
-      glLinkProgram( programID );
+      GLuint program = glCreateProgram();
+      glAttachShader( program, vs );
+      glAttachShader( program, fs );
+      glLinkProgram( program );
 
-      if ( !validate_program( programID ) )
+      if ( !validate_program( program ) )
       {
         BREAK;
       }
 
-      glDetachShader( programID, vsID );
-      glDetachShader( programID, fsID );
+      glDetachShader( program, vs );
+      glDetachShader( program, fs );
 
-      glDeleteShader( vsID );
-      glDeleteShader( fsID );
+      glDeleteShader( vs );
+      glDeleteShader( fs );
 
-      //get_uniforms( programID );
-      return programID;
+      //get_uniforms( program );
+      return program;
     }
 
-    bse::ShaderProgramID create_shader_program( char const* combinedglslData, s32 size )
+    GLuint create_shader_program( char const* combinedglslData, s32 size )
     {
       char const* reader = (char const*) combinedglslData;
       char const* end = reader + size;
@@ -167,76 +212,7 @@ namespace bse
     }
 
 
-    ShaderProgram load_shader( char const* filePath )
-    {
-      ShaderProgram result {};
-      LoadedFile shaderFile = load_file( filePath );
 
-      if ( shaderFile.data )
-      {
-        result.id = opengl::create_shader_program( (char const*) shaderFile.data, shaderFile.size );
-        free( shaderFile.data );
 
-        //load attributes
-        {
-          s32 count = -1;
-          s32 length;
-          char name[256];
-          s32 size;
-          GLenum type;
-
-          glUseProgram( result.id );
-          glGetProgramiv( result.id, GL_ACTIVE_ATTRIBUTES, &count );
-
-          for ( s32 i = 0; i < count; ++i )
-          {
-            memset( name, 0, sizeof( name ) );
-            glGetActiveAttrib( result.id, GLuint( i ), sizeof( name ), &length, &size, &type, name );
-            s32 attributeLocation = glGetAttribLocation( result.id, name );
-            if ( attributeLocation >= 0 )
-            {
-              result.attributes[name] = attributeLocation;
-            }
-          }
-
-          count = -1;
-          char testName[256];
-          glGetProgramiv( result.id, GL_ACTIVE_UNIFORMS, &count );
-          for ( s32 i = 0; i < count; ++i )
-          {
-            memset( name, 0, sizeof( name ) );
-            glGetActiveUniform( result.id, GLuint( i ), sizeof( name ), &length, &size, &type, name );
-            s32 uniform = glGetUniformLocation( result.id, name );
-            if ( uniform >= 0 )
-            {
-              std::string uniformName = name;
-              std::size_t found = uniformName.find( '[' );
-              if ( found != std::string::npos )
-              {
-                uniformName.erase( uniformName.begin() + found, uniformName.end() );
-                u32 uniformIndex = 0;
-
-                while ( true )
-                {
-                  //    string_format( testName, sizeof( testName ), uniformName.c_str(), "[", uniformIndex++, "]" );
-                  s32 uniformLocation = glGetUniformLocation( result.id, testName );
-                  if ( uniformLocation < 0 )
-                  {
-                    break;
-                  }
-                  result.uniforms[testName] = uniformLocation;
-                }
-              }
-
-              result.uniforms[uniformName] = uniform;
-            }
-          }
-        }
-      }
-
-      return std::move( result );
-    }
   };
 };
-
-#endif

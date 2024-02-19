@@ -432,7 +432,7 @@ namespace bse
   {
     if ( a == nullptr || b == nullptr )
     {
-      return 0;
+      return false;
     }
 
     bool result = false;
@@ -479,6 +479,11 @@ namespace bse
     for ( s32 i = 0; i < capacity; ++i )
     {
       destination[i] = origin[i];
+
+      if ( origin[i] == '\0' )
+      {
+        break;
+      }
     }
     return destination;
   }

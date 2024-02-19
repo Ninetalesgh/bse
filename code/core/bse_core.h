@@ -33,7 +33,7 @@ namespace bse
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     using get_file_info_fn = bool( char const* filePath, file::Info* out_fileInfo );
-    using load_file_part_fn = bool( char const* filePath, u64 readOffset, void* targetBuffer, u32 bufferSize );
+    using load_file_part_fn = bool( char const* filePath, u64 readOffset, void* targetBuffer, s64 bufferSize );
     using write_file_fn = bool( char const* filePath, void const* data, u32 size, file::WriteFlags );
     using create_directory_fn = bool( char const* directoryPath );
     using get_precompiled_asset_fn = bool( char const* name, void** out_data, u64* out_size );
@@ -130,6 +130,8 @@ namespace bse
       char* virtualMemoryAddressEnd;
       ProcessorArchitecture processorArchitecture;
     } info;
+
+    void* userData;
 
     //this memory gets invalidated frequently I suppose TODO
     struct FrameInfo
