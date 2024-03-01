@@ -25,6 +25,12 @@ int bse_main( int argc, char** argv )
   win64::global::running = true;
   while ( win64::global::running )
   {
+    //0) Refresh viewport if necessary
+    if ( win64::global::platform.settings.windowSize != win64::global::mainWindow.cachedSize )
+    {
+      win64::set_window_size( win64::global::platform.settings.windowSize );
+    }
+
     //1) Pause thread if requested?
 
     //2) Loop
@@ -170,6 +176,7 @@ int bse_win64_init( int argc, char** argv )
 
     win64::global::mainWindow = win64::create_window( parameter );
     assert( win64::global::mainWindow.handle );
+
   }
   #endif
 
@@ -381,10 +388,12 @@ LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wPa
   {
     case WM_SIZE:
     {
-      win64::global::mainWindow.size = int2 { s32( LOWORD( lParam ) ), s32( HIWORD( lParam ) ) };
+      //overwrite platform settings
+      win64::global::platform.settings.windowSize = int2 { s32( LOWORD( lParam ) ), s32( HIWORD( lParam ) ) };
+      win64::global::mainWindow.cachedSize = win64::global::platform.settings.windowSize;
       if ( wParam == SIZE_MAXIMIZED || wParam == SIZE_MINIMIZED )
       {
-        win64::opengl::resize_viewport( win64::global::mainWindow.size );
+        win64::opengl::resize_viewport( win64::global::platform.settings.windowSize );
       }
       break;
     }
@@ -395,7 +404,9 @@ LRESULT CALLBACK bse_main_window_callback( HWND window, UINT message, WPARAM wPa
     case WM_DISPLAYCHANGE:
     case WM_EXITSIZEMOVE:
     {
-      win64::opengl::resize_viewport( win64::global::mainWindow.size );
+      //overwrite platform settings
+      win64::global::mainWindow.cachedSize = win64::global::platform.settings.windowSize;
+      win64::opengl::resize_viewport( win64::global::platform.settings.windowSize );
       break;
     }
     case WM_DESTROY:

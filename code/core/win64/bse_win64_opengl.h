@@ -320,6 +320,13 @@ namespace win64
     }
   };
 
+  void set_window_size( int2 const& size )
+  {
+    ::SetWindowPos( win64::global::mainWindow.handle, 0, 0, 0, size.x, size.y, SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER );
+    win64::global::mainWindow.cachedSize = size;
+    win64::opengl::resize_viewport( size );
+  }
+
   WindowContext create_window( WindowInitParameter const& parameter )
   {
     WindowContext resultWindow {};
@@ -378,8 +385,6 @@ namespace win64
       {
         BREAK;
       }
-
-      opengl::resize_viewport( parameter.size );
     }
 
     return resultWindow;

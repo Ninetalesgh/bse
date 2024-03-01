@@ -34,22 +34,32 @@ namespace bse
   //A motor is a screw combining a rotation and translation along a screw axis
   using motor = kln::motor;
 
+  INLINE float3 to_float3( bse::point const& point )
+  {
+    float out[4];
+    __m128 tmp = kln::detail::rcp_nr1( KLN_SWIZZLE( point.p3_, 0, 0, 0, 0 ) );
+    tmp = _mm_mul_ps( point.p3_, tmp );
+    _mm_store_ps( out, tmp );
+    return float3 { out[1], out[2], out[3] };
+  }
 
   float4 create_viewport_projector( float viewportWidth, float viewportHeight, float fovRadians, float zNear, float zFar )
   {
-    float tanHalfFovx = 1.0f / tanf( fovRadians * 0.5f );
-    float aspectRatio = viewportHeight / viewportWidth;
-    float z = zFar / (zFar - zNear);
-    return float4 { tanHalfFovx, aspectRatio * tanHalfFovx, z, zNear };
+    float const tanHalfFovx = 1.0f / tanf( fovRadians * 0.5f );
+    float const aspectRatio = viewportWidth / viewportHeight;
+    float const z = (zFar + zNear) / (zFar - zNear);
+    float const w = (2.0f * zFar * zNear) / (zFar - zNear);
+    return float4 { tanHalfFovx, aspectRatio * tanHalfFovx, z, w };
   }
 
   float4 project_positive_x_to_viewport( float3 p, float4 viewportProjector )
   {
     float4 result {};
-    result.x = p.z * viewportProjector.x;
-    result.y = p.y * viewportProjector.y;
-    result.z = p.x * viewportProjector.z - viewportProjector.z * viewportProjector.w /* * p.w*/;
-    result.w = p.x;
+    float const invDistance = 1.0f / p.x;
+    result.x = viewportProjector.x * invDistance * p.z;
+    result.y = viewportProjector.y * invDistance * p.y;
+    result.z = viewportProjector.z - invDistance * viewportProjector.w /* * p.w*/;
+    result.w = 1.0f;
     return result;
   }
 };

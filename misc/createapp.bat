@@ -36,6 +36,7 @@ IF NOT EXIST %app_name% mkdir %app_name%
 pushd %app_name%
 
 set cpp_name="%app_name:"=%.cpp"
+set h_name="%app_name:"=%.h"
 set bat_name="build_%app_name:"=%.bat"
 
 set response=y
@@ -48,21 +49,38 @@ IF /I NOT %response%==y (
   goto end
 )
 
-> %cpp_name% echo #include "bse_core.h"
+> %h_name% echo #pragma once
+>> %h_name% echo #include "bse_core.h%"
+>> %h_name% echo:
+>> %h_name% echo struct AppData
+>> %h_name% echo {
+>> %h_name% echo   //your hot-reload persistent data goes here!
+>> %h_name% echo }
+>> %h_name% echo:
+>> %h_name% echo //this will be set for you every time 
+>> %h_name% echo extern AppData* appData;
+>> %h_name% echo:
+
+> %cpp_name% echo #include %h_name%
 >> %cpp_name% echo:
->> %cpp_name% echo void initialize( bse::PlatformInitParams* initParameters )
+>> %cpp_name% echo void initialize_platform( bse::PlatformInitParams* initParameters )
 >> %cpp_name% echo {
->> %cpp_name% echo   //your initialization goes here
+>> %cpp_name% echo   //called once before the platform is fully initialized to set init parameters
+>> %cpp_name% echo }
+>> %cpp_name% echo:
+>> %cpp_name% echo void initialize_app_data()
+>> %cpp_name% echo {
+>> %cpp_name% echo   //called once after the platform is fully initialized for you to initialize your app data
 >> %cpp_name% echo }
 >> %cpp_name% echo:
 >> %cpp_name% echo void on_reload()
 >> %cpp_name% echo {
->> %cpp_name% echo   //your on reload goes here, relevant for hot reloading
+>> %cpp_name% echo   //called once every time you hot reload
 >> %cpp_name% echo }
 >> %cpp_name% echo:
 >> %cpp_name% echo void tick()
 >> %cpp_name% echo {
->> %cpp_name% echo   //your per frame update goes here
+>> %cpp_name% echo   //called once every frame
 >> %cpp_name% echo }
 >> %cpp_name% echo:
 

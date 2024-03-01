@@ -94,7 +94,7 @@ namespace win64
     HWND handle;
     HDC deviceContext;
     HGLRC renderContext;
-    int2 size;
+    int2 cachedSize;
   };
 
   namespace global

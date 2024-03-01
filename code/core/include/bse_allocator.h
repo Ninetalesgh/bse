@@ -260,17 +260,26 @@ namespace bse
       using value_type = T;
       using propagate_on_container_move_assignment = std::true_type;
       using is_always_equal = std::true_type;
+      using difference_type = std::ptrdiff_t;
 
-      AllocatorProxy() noexcept {}
-      ~AllocatorProxy() noexcept {}
-      AllocatorProxy( AllocatorProxy const& ) noexcept {}
-      template<typename U> AllocatorProxy( AllocatorProxy<U> const& ) noexcept {}
+      constexpr AllocatorProxy() noexcept {}
+      constexpr AllocatorProxy( AllocatorProxy const& ) = default;
+      template<typename U> constexpr AllocatorProxy( AllocatorProxy<U> const& ) noexcept {}
+      ~AllocatorProxy() = default;
+      constexpr AllocatorProxy& operator=( const AllocatorProxy& ) = default;
 
-      void deallocate( T* ptr, s64 size ) { free_thread_safe( ptr, size ); }
-      T* allocate( s64 size ) { return (T*) allocate_thread_safe( size ); }
+      void deallocate( T* ptr, s64 size )
+      {
+        free_thread_safe( ptr, size * sizeof( T ) );
+      }
+      T* allocate( s64 size )
+      {
+        return (T*) allocate_thread_safe( size * sizeof( T ) );
+      }
     };
-    template<typename T> bool operator ==( AllocatorProxy<T> const&, AllocatorProxy<T> const& ) { return true; }
-    template<typename T> bool operator !=( AllocatorProxy<T> const&, AllocatorProxy<T> const& ) { return false; }
+
+    template<typename T, typename U> bool operator ==( AllocatorProxy<T> const&, AllocatorProxy<U> const& ) { return true; }
+    template<typename T, typename U> bool operator !=( AllocatorProxy<T> const&, AllocatorProxy<U> const& ) { return false; }
 
   };
 };

@@ -74,8 +74,11 @@ namespace bse
   template<> s32 string_format_internal<s16>( char* destination, s32 capacity, s16 value );
   template<> s32 string_format_internal<s8>( char* destination, s32 capacity, s8 value );
 
+  template<> s32 string_format_internal<int2>( char* destination, s32 capacity, int2 value );
+  template<> s32 string_format_internal<float2>( char* destination, s32 capacity, float2 value );
+
   s32 string_format_float( char* destination, s32 capacity, float value, s32 const postPeriodDigits );
-  template<> s32 string_format_internal<float>( char* destination, s32 capacity, float value ) { return string_format_float( destination, capacity, value, 4 ); }
+  template<> s32 string_format_internal<float>( char* destination, s32 capacity, float value ) { return string_format_float( destination, capacity, value, 2 ); }
 
   template<bool internal, typename Arg> INLINE s32 string_format( char* destination, s32 capacity, Arg value ) { static_assert(0); } //type doesn't exist for formatting yet, sorry :(
 
@@ -285,8 +288,13 @@ namespace bse
     return result + string_format_internal( destination, capacity - result, u8( value ) );
   }
 
+  #pragma push
+  #pragma warning(disable:4996)
+  #pragma warning(disable:4702)
   s32 string_format_float( char* destination, s32 capacity, float value, s32 const postPeriodDigits )
   {
+    return sprintf( destination, "%.2f", value );
+
     constexpr u32 MASK_FIRST_BIT = 0b10000000000000000000000000000000;
     constexpr u32 MASK_EXPONENT  = 0b01111111100000000000000000000000;
     constexpr u32 MASK_MANTISSA  = 0b00000000011111111111111111111111;
@@ -407,6 +415,18 @@ namespace bse
 
       return result + string_format_internal( destination, capacity - result, tmpTo );
     }
+
+  }
+  #pragma pop
+
+  template<> s32 string_format_internal<int2>( char* destination, s32 capacity, int2 value )
+  {
+    return string_format( destination, capacity, "{", value.x, ", ", value.y, "}" ) - 1;
+  }
+
+  template<> s32 string_format_internal<float2>( char* destination, s32 capacity, float2 value )
+  {
+    return string_format( destination, capacity, "{", value.x, ", ", value.y, "}" ) - 1;
   }
 
   INLINE s32 string_length( char const* string )

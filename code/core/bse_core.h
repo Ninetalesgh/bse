@@ -145,6 +145,7 @@ namespace bse
     {
       float timeMultiplier = 1.0f;
       float fpsCap = 30.0f;
+      int2  windowSize;
     } settings;
 
   } extern* platform;

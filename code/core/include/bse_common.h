@@ -158,12 +158,18 @@ struct int2
 
   INLINE int2 friend operator +( int2 const& a, int2 const& b ) { return { a.x + b.x, a.y + b.y }; }
   INLINE int2 friend operator -( int2 const& a, int2 const& b ) { return { a.x - b.x, a.y - b.y }; }
+  INLINE int2 friend operator *( int2 const& a, int2 const& b ) { return { a.x * b.x, a.y * b.y }; }
+  INLINE int2 friend operator /( int2 const& a, int2 const& b ) { return { a.x / b.x, a.y / b.y }; }
   INLINE int2 friend operator *( s32 f, int2 const& v ) { return { f * v.x, f * v.y }; }
   INLINE int2 friend operator *( int2 const& v, s32 f ) { return { f * v.x, f * v.y }; }
+  INLINE int2 friend operator /( int2 const& v, s32 f ) { return { v.x / f, v.y / f }; }
 
   INLINE int2 const& operator+=( int2 const& other ) { return *this = *this + other; }
   INLINE int2 const& operator-=( int2 const& other ) { return *this = *this - other; }
   INLINE int2 const& operator*=( s32 other ) { return *this = *this * other; }
+
+  INLINE bool friend operator ==( int2 const& a, int2 const& b ) { return (a.x == b.x) && (a.y == b.y); };
+  INLINE bool friend operator !=( int2 const& a, int2 const& b ) { return (a.x != b.x) && (a.y != b.y); };
 };
 struct int3
 {
@@ -243,6 +249,9 @@ struct float2
 
   INLINE float2 friend operator +( float2 const& a, float2 const& b ) { return { a.x + b.x, a.y + b.y }; }
   INLINE float2 friend operator -( float2 const& a, float2 const& b ) { return { a.x - b.x, a.y - b.y }; }
+  INLINE float2 friend operator *( float2 const& a, float2 const& b ) { return { a.x * b.x, a.y * b.y }; }
+  INLINE float2 friend operator /( float2 const& a, float2 const& b ) { return { a.x / b.x, a.y / b.y }; }
+
   INLINE float2 friend operator *( float f, float2 const& v ) { return { f * v.x, f * v.y }; }
   INLINE float2 friend operator *( float2 const& v, float f ) { return { f * v.x, f * v.y }; }
   INLINE float2 friend operator /( float2 const& v, float f ) { f = 1.0f / f; return v * f; }
