@@ -30,17 +30,12 @@ IF EXIST code\bse_main.cpp (
   )
 )
 
-IF NOT EXIST %out_path% mkdir %out_path%
-pushd %out_path%
-IF NOT EXIST %app_name% mkdir %app_name%
-pushd %app_name%
-
 set cpp_name="%app_name:"=%.cpp"
 set h_name="%app_name:"=%.h"
 set bat_name="build_%app_name:"=%.bat"
 
 set response=y
-IF EXIST %cpp_name% (
+IF EXIST %out_path%\%app_name%\%cpp_name% (
   echo %cpp_name% already exists, do you want to overwrite it? [Y/N]
   set /p response=
 )
@@ -49,8 +44,13 @@ IF /I NOT %response%==y (
   goto end
 )
 
+IF NOT EXIST %out_path% mkdir %out_path%
+pushd %out_path%
+IF NOT EXIST %app_name% mkdir %app_name%
+pushd %app_name%
+
 > %h_name% echo #pragma once
->> %h_name% echo #include "bse_core.h%"
+>> %h_name% echo #include "bse_core.h"
 >> %h_name% echo:
 >> %h_name% echo struct AppData
 >> %h_name% echo {

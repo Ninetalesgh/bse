@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- The "package" must have this three-layer structure for some reason. Other configurations could not be successfully tested. -->
+<manifest
+	xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools"
+	package="com.bse.core"
+>
+
+	<uses-sdk android:minSdkVersion="20"
+          android:targetSdkVersion="31"
+          android:maxSdkVersion="31" />
+
+	<application
+		android:label="Hello Label"
+    tools:targetApi="31"
+	>
+		
+		<activity
+			android:name=".BseMainActivity"
+			android:label="Hello Label"
+      android:exported="true"
+		>
+			
+			<intent-filter>
+				
+				<action android:name="android.intent.action.MAIN" />
+				<category android:name="android.intent.category.LAUNCHER" />
+				
+			</intent-filter>
+			
+		</activity>
+		
+	</application>
+	
+</manifest>
