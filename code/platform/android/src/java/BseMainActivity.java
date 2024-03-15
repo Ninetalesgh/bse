@@ -1,5 +1,7 @@
 package com.bse.core;
 
+import com.bse.core.AndroidGLSurfaceView;
+
 import android.app.Activity;
 import android.os.Bundle;
 import android.widget.TextView;
@@ -10,22 +12,31 @@ public class BseMainActivity extends Activity {
 
     // Used to load the 'bse_android' library on application startup.
     static {
-        System.loadLibrary("bse_core");
+        System.loadLibrary("androidtest");
     }
 
+    AndroidGLSurfaceView openglView;
 
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) 
+    {
         super.onCreate(savedInstanceState);
-                
-        this.setContentView (R.layout.hello);
+        
+        //for hello.xml
+
+        // this.setContentView (R.layout.hello);
+        // TextView tv = (TextView) this.findViewById (R.id.MainTextView);
+        // tv.setText(stringFromJNI());
+
+        openglView = new AndroidGLSurfaceView(this);
+
+        this.setContentView(openglView);
+
 
        // binding = ActivityMainBinding.inflate(getLayoutInflater());
         //this.setContentView(binding.getRoot());
 
         // Example of a call to a native method
-        TextView tv = (TextView) this.findViewById (R.id.MainTextView);
-        tv.setText("WHAT");
-        tv.setText(stringFromJNI());
+        //tv.setText("WHAT");
     }
 
     /**

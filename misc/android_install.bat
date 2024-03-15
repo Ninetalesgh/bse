@@ -7,4 +7,4 @@ set package=com.bse.core
 
 %adb% uninstall %package%
 
-%adb% install "C:\personal\bse\build\android\bse.apk"
+%adb% install "C:\personal\bse\build\androidtest\android\debug\androidtest_debug.apk"

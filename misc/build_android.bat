@@ -33,8 +33,6 @@ IF NOT "%~0"=="" (
       set app_path="%~1"
       IF "%out_name%"=="" set out_name=%~n1
       IF "%out_path%"=="" set out_path=%~dp1..\..\build\%~n1
-
-
       SHIFT
     )
     goto loop_parse_parameters
@@ -104,8 +102,8 @@ set manifest_path="%projectpath:"=%\AndroidManifest.xml"
 set keypass=bse_generic_password
 
 
-set src_file=%src_path%\BseMainActivity.java
-
+set java_src_path=%src_path%\java
+set cpp_src_path=%src_path%\cpp
 
 set compiler_options=--sysroot=%sysroot% -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wformat -Werror=format-security -fno-limit-debug-info -fPIC
 IF NOT %app_path%=="" set compiler_options=%compiler_options% -DBSE_BUILD_APP_PATH=%app_path%
@@ -136,15 +134,6 @@ set linker_options=-static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegm
   set result=%debug_out_path%\%out_name%_debug.apk
 
 @REM ------------------------------------------------------------------------
-@REM -------- Compile Java and Package --------------------------------------
-@REM ------------------------------------------------------------------------
-
-  %aapt% package -v -f -m -S %res_path% -J %debug_out_path% -M %manifest_path% -I %BSE_ANDROID_JAR_PATH%
-  %javac% -d "obj" -source 1.7 -target 1.7 -classpath "%BSE_ANDROID_JAR_PATH%;%debug_out_path%\%out_name%" -sourcepath "%debug_out_path%" %src_file%
-  call %d8% %debug_out_path%\obj\%package_path%\* --output=%debug_out_path%\bin --no-desugaring
-  %aapt% package -v -f -m -S %res_path% -J %src_path% -M %manifest_path% -I %BSE_ANDROID_JAR_PATH% -F %result_unsigned% %debug_out_path%\bin
-  
-@REM ------------------------------------------------------------------------
 @REM -------- Compile Native Libraries --------------------------------------
 @REM ------------------------------------------------------------------------
 
@@ -159,38 +148,63 @@ set linker_options=-static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegm
   echo Building native libraries...
   pushd arm64-v8a
   echo Building for arm64-v8a
-  %clang% %src_path%\bse_android.cpp --target=aarch64-none-linux-android29 %compiler_options_debug% -o lib%out_name%.so %linker_options%
+  %clang% %cpp_src_path%\bse_android.cpp --target=aarch64-none-linux-android29 %compiler_options_debug% -o lib%out_name%.so %linker_options%
   popd
 
   pushd armeabi-v7a
   echo Building for armeabi-v7a
-  %clang% %src_path%\bse_android.cpp --target=armv7-none-linux-androideabi29 %compiler_options_debug% -o lib%out_name%.so %linker_options%
+  %clang% %cpp_src_path%\bse_android.cpp --target=armv7-none-linux-androideabi29 %compiler_options_debug% -o lib%out_name%.so %linker_options%
   popd
 
   pushd x86
   echo Building for x86
-  %clang% %src_path%\bse_android.cpp --target=i686-none-linux-android29 %compiler_options_debug% -o lib%out_name%.so %linker_options%
+  %clang% %cpp_src_path%\bse_android.cpp --target=i686-none-linux-android29 %compiler_options_debug% -o lib%out_name%.so %linker_options%
   popd
 
   pushd x86_64
   echo Building for x86_64
-  %clang% %src_path%\bse_android.cpp --target=x86_64-none-linux-android29 %compiler_options_debug% -o lib%out_name%.so %linker_options%
+  %clang% %cpp_src_path%\bse_android.cpp --target=x86_64-none-linux-android29 %compiler_options_debug% -o lib%out_name%.so %linker_options%
   popd
   popd rem lib
+
+  if %errorlevel% neq 0 goto error_section
+
+@REM ------------------------------------------------------------------------
+@REM -------- Compile Java and Package --------------------------------------
+@REM ------------------------------------------------------------------------
+
+  %aapt% package -v -f -m -S %res_path% -J %debug_out_path% -M %manifest_path% -I %BSE_ANDROID_JAR_PATH%
+  if %errorlevel% neq 0 goto error_section
+
+  %javac% -d "obj" -source 1.7 -target 1.7 -classpath "%BSE_ANDROID_JAR_PATH%;%debug_out_path%\%out_name%" -sourcepath "%debug_out_path%" %java_src_path%\*
+  if %errorlevel% neq 0 goto error_section
+
+  call %d8% %debug_out_path%\obj\%package_path%\* --output=%debug_out_path%\bin --no-desugaring
+  if %errorlevel% neq 0 goto error_section
+
+  %aapt% package -v -f -m -S %res_path% -J %debug_out_path% -M %manifest_path% -I %BSE_ANDROID_JAR_PATH% -F %result_unsigned% %debug_out_path%\bin
+  if %errorlevel% neq 0 goto error_section
 
 @REM ------------------------------------------------------------------------
 @REM -------- Add Native Libraries to Package -------------------------------
 @REM ------------------------------------------------------------------------
 
   zip -r -u %result_unsigned% lib
+  if %errorlevel% neq 0 goto error_section
 
 @REM ------------------------------------------------------------------------
 @REM -------- Sign Package --------------------------------------------------
 @REM ------------------------------------------------------------------------
 
   %keytool% -genkeypair -validity 10000 -dname "CN=%out_name%, C=AT" -keystore %keystore_path% -storepass %keypass% -keypass %keypass% -alias %out_name% -keyalg RSA
+  if %errorlevel% neq 0 goto error_section
+
   %zipalign% -f 4 %result_unsigned% %result_zipaligned%
+  if %errorlevel% neq 0 goto error_section
+
   call %apksigner% sign -v --out %result% --ks %keystore_path% --ks-key-alias %out_name% --ks-pass pass:"%keypass%" --key-pass pass:"%keypass%" %result_zipaligned% 
+  if %errorlevel% neq 0 goto error_section
+
   rem I suppose verified everytime isn't necessary 
   rem call %apksigner% verify -v --print-certs %result%
 
@@ -212,18 +226,30 @@ set linker_options=-static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegm
 
 @REM -------- TODO BUILD RELEASE -------------------------------------------------
 
-
-
 :skip_build_release
 
 
 
-popd
+popd rem %out_path%
+
+
+call android_install.bat
+
 goto end
 :help_section
   echo --------------------------------------------------------------
   echo ---- TODO HELP -----------------------------------------------
   echo --------------------------------------------------------------
+goto end
+
+:error_section
+
+popd
+  echo ==============================================================
+  echo --------------------------------------------------------------
+  echo ---------- ERROR, PLEASE READ THE LOGS ABOVE ----------------- 
+  echo --------------------------------------------------------------
+
 
 :end
 endlocal

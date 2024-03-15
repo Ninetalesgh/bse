@@ -11,7 +11,7 @@ rem keytool.exe
 set BSE_JAVA_BIN_PATH="C:\Program Files\Android\jdk\jdk-8.0.302.8-hotspot\jdk8u302-b08\bin"
 
 rem -------------------------------------------------------------------------------------
-rem These expect ANDROID_SDK_ROOT to exist
+rem These expect ANDROID_SDK_ROOT to exist as environment variable
 rem -------------------------------------------------------------------------------------
 
 rem this directory should contain:
