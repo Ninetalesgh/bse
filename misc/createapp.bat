@@ -55,7 +55,7 @@ pushd %app_name%
 >> %h_name% echo struct AppData
 >> %h_name% echo {
 >> %h_name% echo   //your hot-reload persistent data goes here!
->> %h_name% echo }
+>> %h_name% echo };
 >> %h_name% echo:
 >> %h_name% echo //this will be set for you every time 
 >> %h_name% echo extern AppData* appData;

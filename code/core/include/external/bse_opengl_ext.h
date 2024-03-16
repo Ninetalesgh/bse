@@ -1,6 +1,10 @@
 #pragma once
 
-#define BSE_OGLAPI __stdcall
+#if defined(BSE_PLATFORM_WINDOWS)
+# define BSE_OGLAPI __stdcall
+#else
+# define BSE_OGLAPI 
+#endif
 
 using GLchar = char;
 using GLsizeiptr = long long;

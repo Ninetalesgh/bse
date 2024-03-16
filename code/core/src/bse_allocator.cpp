@@ -647,7 +647,7 @@ namespace bse
       //s64 end = total / s64( platform->info.virtualMemoryPageSize );
 
       char* pointer = nullptr;
-      assert( platform->info.virtualMemoryAddressEnd - platform->info.virtualMemoryAddressBegin > networkSize + temporarySize + generalSize );
+      assert( s64( platform->info.virtualMemoryAddressEnd - platform->info.virtualMemoryAddressBegin ) > networkSize + temporarySize + generalSize );
 
       pointer = (char*) platform->allocate_virtual_memory( 0, networkSize );
       init_arena_for_virtual_memory_layout( layout.network, &layout, pointer, networkSize, policy );

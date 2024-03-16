@@ -10,7 +10,6 @@ import android.widget.TextView;
 
 public class BseMainActivity extends Activity {
 
-    // Used to load the 'bse_android' library on application startup.
     static {
         System.loadLibrary("androidtest");
     }
@@ -39,9 +38,6 @@ public class BseMainActivity extends Activity {
         //tv.setText("WHAT");
     }
 
-    /**
-     * A native method that is implemented by the 'androidcpptest' native library,
-     * which is packaged with this application.
-     */
+
     public native String stringFromJNI();
 }

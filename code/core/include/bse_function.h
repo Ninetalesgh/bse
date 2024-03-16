@@ -27,6 +27,20 @@ namespace bse
   #endif
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Preprocessor defines //////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ///// Different compilers complain in different ways, I suppose.   ///////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  #if defined (BSE_PLATFORM_WINDOWS)
+  # define BSE_STD_IS_INVOKABLE std::_Is_invocable_r
+  # define BSE_STD_INVOKE std::invoke
+  #elif defined (BSE_PLATFORM_ANDROID)
+  # define BSE_STD_IS_INVOKABLE std::is_invocable_r
+  # define BSE_STD_INVOKE std::__invoke
+  #endif
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Function Pointers /////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ///// Heavily inspired by std::function, many thanks <3.           ///////////////////////////////////
@@ -55,16 +69,16 @@ namespace bse
     #endif
 
     template <class F, class _Function>
-    using _EnableIfCallableType = std::enable_if_t<std::conjunction_v<std::negation<std::is_same<std::decay_t<F>, _Function>>, std::_Is_invocable_r<ReturnType, F, Args...>>, int>;
+    using _EnableIfCallableType = std::enable_if_t<std::conjunction_v<std::negation<std::is_same<std::decay_t<F>, _Function>>, BSE_STD_IS_INVOKABLE<ReturnType, F, Args...>>, int>;
 
     INLINE ReturnType operator()( Args... args ) const
     {
       #if defined(BSE_BUILD_DEBUG_DEVELOPMENT)
       //TODO get right module via moduleId here
       Signature actualPtr = get_type_register().get_ptr_by_index( hotReloadIndex );
-      return std::invoke( actualPtr, std::forward<Args>( args )... );
+      return BSE_STD_INVOKE( actualPtr, std::forward<Args>( args )... );
       #else
-      return std::invoke( ptr, std::forward<Args>( args )... );
+      return BSE_STD_INVOKE( ptr, std::forward<Args>( args )... );
       #endif
     }
 
@@ -98,7 +112,7 @@ namespace bse
     #endif
 
     template <class F, class _Function>
-    using _EnableIfCallableType = std::enable_if_t<std::conjunction_v<std::negation<std::is_same<std::decay_t<F>, _Function>>, std::_Is_invocable_r<ReturnType, F, T, Args...>>, int>;
+    using _EnableIfCallableType = std::enable_if_t<std::conjunction_v<std::negation<std::is_same<std::decay_t<F>, _Function>>, BSE_STD_IS_INVOKABLE<ReturnType, F, T, Args...>>, int>;
     using _SignatureWithoutClass = ReturnType( Args... );
 
     INLINE ReturnType operator()( T* obj, Args... args ) const
@@ -106,9 +120,9 @@ namespace bse
       #if defined(BSE_BUILD_DEBUG_DEVELOPMENT)
       //TODO get right module via moduleId here
       Signature actualPtr = get_type_register().get_ptr_by_index( hotReloadIndex );
-      return std::invoke( actualPtr, std::forward<T*>( obj ), std::forward<Args>( args )... );
+      return BSE_STD_INVOKE( actualPtr, std::forward<T*>( obj ), std::forward<Args>( args )... );
       #else
-      return std::invoke( ptr, std::forward<T*>( obj ), std::forward<Args>( args )... );
+      return BSE_STD_INVOKE( ptr, std::forward<T*>( obj ), std::forward<Args>( args )... );
       #endif
     }
 
@@ -119,48 +133,59 @@ namespace bse
     };
   };
 
-  template <typename T> struct _GetFunc { static_assert(std::_Always_false<T>, "Function does not accept non-function types as template arguments."); };
-  #define _GET_FUNCTION_IMPL(CALL_OPT, X1, X2, X3) template <typename R, typename Arg, typename... Args> struct _GetFunc<R CALL_OPT(Arg, Args...)> { using type = _FuncClass<R, Arg, Args...>; };
-  _NON_MEMBER_CALL( _GET_FUNCTION_IMPL, X1, X2, X3 );
-  #undef _GET_FUNCTION_IMPL
 
-  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( __thiscall Arg::* )(Args...)> { using type = _MemberFuncClass<R, Arg, Args...>; };
-  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( __thiscall Arg::* )(Args...) const> { using type = _MemberFuncClass<R, Arg, Args...>; };
+  template <typename T> struct _GetFunc { static_assert(BSE_ALWAYS_FALSE( T ), "Function does not accept non-function types as template arguments."); };
+
+  template <typename R, typename... Args> struct _GetFunc<R BSE_CALLING_CONVENTION_CDECL( Args... )> { using type = _FuncClass<R, Args...>; };
+  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( BSE_CALLING_CONVENTION_THIS_CALL Arg::* )(Args...)> { using type = _MemberFuncClass<R, Arg, Args...>; };
+  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( BSE_CALLING_CONVENTION_THIS_CALL Arg::* )(Args...) const> { using type = _MemberFuncClass<R, Arg, Args...>; };
+
+  #if defined(BSE_ARCHITECTURE_X86)
+  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( __fastcall Arg::* )(Args...)> { using type = _MemberFuncClass<R, Arg, Args...>; };
+  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( __fastcall Arg::* )(Args...) const> { using type = _MemberFuncClass<R, Arg, Args...>; };
+
+  template <typename R, typename... Args> struct _GetFunc<R __stdcall(Args...)> { using type = _FuncClass<R, Args...>; };
+  template <typename R, typename... Args> struct _GetFunc<R __fastcall(Args...)> { using type = _FuncClass<R, Args...>; };
+  #endif
+
+  #if defined(BSE_ARCHITECTURE_X64)
+  template <typename R, typename... Args> struct _GetFunc<R __vectorcall(Args...)> { using type = _FuncClass<R, Args...>; };
+  #endif
 
   template<typename F> struct Function : public _GetFunc<F>::type
   {
     using Super = typename _GetFunc<F>::type;
 
-    Function() { ptr = nullptr; }
-    Function( Function<F> const& other ) { ptr = other.ptr; }
-    Function( Function<F>&& other ) { ptr = other.ptr; other.ptr = nullptr; }
+    Function() { this->ptr = nullptr; }
+    Function( Function<F> const& other ) { this->ptr = other.ptr; }
+    Function( Function<F>&& other ) { this->ptr = other.ptr; other.ptr = nullptr; }
 
-    template<typename T, class = typename Super::_EnableIfCallableType<T&, Function>>
+    template<typename T, class = typename Super::template _EnableIfCallableType<T&, Function>>
     Function( T func )
     {
-      ptr = (Signature) func;
+      this->ptr = (typename Super::Signature) func;
       #if defined(BSE_BUILD_DEBUG_DEVELOPMENT)
-      hotReloadIndex = Super::get_type_register().get_index_for_ptr( ptr );
+      this->hotReloadIndex = Super::get_type_register().get_index_for_ptr( this->ptr );
       //moduleId = TODO
       #endif
     }
 
-    template<typename T, class = typename Super::_EnableIfCallableType<T&, Function>>
+    template<typename T, class = typename Super::template _EnableIfCallableType<T&, Function>>
     Function<F>& operator=( T&& func )
     {
-      ptr = (Signature) func;
+      this->ptr = (typename Super::Signature) func;
       #if defined(BSE_BUILD_DEBUG_DEVELOPMENT)
-      hotReloadIndex = Super::get_type_register().get_index_for_ptr( ptr );
+      this->hotReloadIndex = Super::get_type_register().get_index_for_ptr( this->ptr );
       //moduleId = TODO
       #endif
       return *this;
     }
 
     #if defined(BSE_BUILD_DEBUG_DEVELOPMENT)
-    template<typename T, class = typename Super::_EnableIfCallableType<T&, Function>>
+    template<typename T, class = typename Super::template _EnableIfCallableType<T&, Function>>
     static void register_function( T fn )
     {
-      get_type_register().add_ptr( fn );
+      Super::get_type_register().add_ptr( fn );
       BREAK;
     }
     #endif
@@ -171,8 +196,8 @@ namespace bse
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
   template <bool Enabled, typename F> struct _FunctionTypeReduction {};
-  template<typename F> struct _FunctionTypeReduction<true, F> { constexpr static bool isLambda = false; using type = typename Function<typename std::remove_pointer<F>::type>; };
-  template<typename F> struct _FunctionTypeReduction<false, F> { constexpr static bool isLambda = true; using type = typename Function<typename _GetFunc<decltype(&std::remove_reference<F>::type::operator())>::type::_SignatureWithoutClass>; };
+  template<typename F> struct _FunctionTypeReduction<true, F> { constexpr static bool isLambda = false; using type = Function<typename std::remove_pointer<F>::type>; };
+  template<typename F> struct _FunctionTypeReduction<false, F> { constexpr static bool isLambda = true; using type = Function<typename _GetFunc<decltype(&std::remove_reference<F>::type::operator())>::type::_SignatureWithoutClass>; };
   template<typename F> using _ReducedFunction = _FunctionTypeReduction<std::disjunction_v<std::is_member_function_pointer<F>, std::is_function<typename std::remove_pointer<F>::type>>, F >;
 
   template<typename F> typename _ReducedFunction<F>::type make_function( F&& functor )

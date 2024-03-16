@@ -2,6 +2,8 @@
 
 #include <memory>
 #include <initializer_list>
+#include <cmath>
+
 #if defined(BSE_BUILD_DEBUG) || defined(BSE_BUILD_DEVELOPMENT)
 #  define BSE_BUILD_DEBUG_DEVELOPMENT
 #endif
@@ -23,6 +25,40 @@
 # define FUNCTION_SIGNATURE __PRETTY_FUNCTION__
 #endif
 
+#if defined(__x86_64__) || defined(_M_X64)
+# define BSE_ARCHITECTURE_X64 
+#endif
+
+#if defined(__i386__) || defined(_M_IX86)
+# define BSE_ARCHITECTURE_X86 
+#endif
+
+#if defined(__arm__)
+# define BSE_ARCHITECTURE_ARM_V7
+#endif
+
+#if defined(__aarch64__) || defined(_M_ARM64)
+# define BSE_ARCHITECTURE_ARM_V8
+#endif
+
+#if defined(_M_CEE)
+#error "no please. no. not this again."
+#endif
+
+#if defined(BSE_ARCHITECTURE_X86)
+# define BSE_CALLING_CONVENTION_THIS_CALL __thiscall
+#else 
+# define BSE_CALLING_CONVENTION_THIS_CALL
+#endif
+
+#if !defined(BSE_ARCHITECTURE_ARM_V7)
+# define BSE_CALLING_CONVENTION_CDECL __cdecl
+#else 
+# define BSE_CALLING_CONVENTION_CDECL 
+#endif
+
+
+
 #define array_count(array) (sizeof(array) / (sizeof((array)[0])))
 
 #define BSE_STACK_BUFFER_SMALL 4096
@@ -43,6 +79,9 @@ INLINE bool flags_contain(enumtypename a, enumtypename b) { return (basictype(a)
 #define BSE_DEFINE_ENUM_OPERATORS_U16(enumtypename) _DEFINE_ENUM_OPERATORS_INTERNAL(enumtypename, u16)
 #define BSE_DEFINE_ENUM_OPERATORS_U32(enumtypename) _DEFINE_ENUM_OPERATORS_INTERNAL(enumtypename, u32)
 #define BSE_DEFINE_ENUM_OPERATORS_U64(enumtypename) _DEFINE_ENUM_OPERATORS_INTERNAL(enumtypename, u64)
+
+template <typename T> struct _BSE_ALWAYS_FALSE { constexpr static bool value = false; };
+#define BSE_ALWAYS_FALSE(T) _BSE_ALWAYS_FALSE<T>::value
 
 using s8  = signed char;
 using s16 = short;
@@ -106,12 +145,20 @@ constexpr INLINE s64 KiloBytes( s64 kiloBytes ) { return kiloBytes * 1024LL; }
 constexpr INLINE s64 MegaBytes( s64 megaBytes ) { return KiloBytes( megaBytes ) * 1024LL; }
 constexpr INLINE s64 GigaBytes( s64 gigaBytes ) { return MegaBytes( gigaBytes ) * 1024LL; }
 
+#if defined(BSE_PLATFORM_WINDOWS)
 constexpr INLINE bool is_negative( float x ) { return (*(u32*) &x) & 0x80000000; }
-constexpr INLINE bool is_negative( s32 x ) { return (*(u32*) &x) & 0x80000000; }
-constexpr INLINE s32   get_sign( s32 x ) { return is_negative( x ) ? -1 : 1; }
-constexpr INLINE float get_sign( float x ) { return is_negative( x ) ? -1.0f : 1.0f; }
-constexpr INLINE bool sign_match( s32 a, s32 b ) { return (a ^ b) >= 0; }
 constexpr INLINE bool sign_match( float a, float b ) { return ((*(s32*) &a) ^ (*(s32*) &b)) >= 0; }
+#elif defined (BSE_PLATFORM_ANDROID)
+constexpr INLINE bool is_negative( float x ) { return std::signbit( x ); }
+constexpr INLINE bool sign_match( float a, float b ) { return std::signbit( a ) == std::signbit( b ); }
+#else 
+#error "Please define either BSE_PLATFORM_WINDOWS or BSE_PLATFORM_ANDROID"
+#endif
+
+constexpr INLINE bool sign_match( s32 a, s32 b ) { return (a ^ b) >= 0; }
+constexpr INLINE bool is_negative( s32 x ) { return x < 0; }
+constexpr INLINE s32   get_sign( s32 x ) { return x < 0 ? -1 : 1; }
+constexpr INLINE float get_sign( float x ) { return x < 0.0f ? -1.0f : 1.0f; }
 constexpr INLINE float to_radians( float degrees ) { return degrees * 0.01745329251f; }
 constexpr INLINE float to_degrees( float radians ) { return radians * 57.2957795131f; }
 

@@ -118,7 +118,7 @@ namespace bse
 
        //Font
 
-    } default;
+    };
 
     struct PlatformInfo
     {

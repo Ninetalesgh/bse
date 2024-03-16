@@ -14,7 +14,7 @@ namespace bse
   u64 byte_to_u64( u8* bytesStartingWithHighestByte );
   u64 byte_to_u64( char* bytesStartingWithHighestByte );
 
-  constexpr bool is_system_big_endian();
+  bool is_system_big_endian();
   char* align_pointer_forward( char* ptr, s32 powerof2 );
 
   u16 leading_zeroes( u16 value );
@@ -109,7 +109,7 @@ namespace bse
                       , (u8) bytes[7] );
   }
 
-  constexpr bool is_system_big_endian()
+  bool is_system_big_endian()
   {
     union {
       u32 i;
@@ -130,8 +130,16 @@ namespace bse
   INLINE u16 leading_zeroes( u16 value ) { return u16( __lzcnt16( value ) ); }
   INLINE u32 leading_zeroes( u32 value ) { return u32( __lzcnt( value ) ); }
   INLINE u64 leading_zeroes( u64 value ) { return u64( __lzcnt64( value ) ); }
+  #else 
 
+  INLINE u32 leading_zeroes( u32 value )
+  {
+    return 0;
+    //TODO
+  }
   #endif
+
+
 
   INLINE u16 round_up_to_next_power_of_two( u16 value ) { return (u16( 1 ) << (u16( 16 ) - leading_zeroes( u16( value - 1u ) ))); }
   INLINE u32 round_up_to_next_power_of_two( u32 value ) { return (u32( 1 ) << (u32( 32 ) - leading_zeroes( u32( value - 1u ) ))); }

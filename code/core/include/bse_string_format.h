@@ -3,6 +3,8 @@
 
 namespace bse
 {
+  //TODO inconsistent that string_length doesn't include the \0
+
   //returns the number of bytes in the string, not counting the \0
   s32 string_length( char const* string );
 
@@ -51,9 +53,33 @@ namespace bse
   char const* string_parse_value( char const* floatString, float* out_float );
   char const* string_parse_value( char const* intString, s32* out_int );
 
+  //returns the number of bytes written including the \0
+  template<typename... Args> INLINE s32 string_format( char* destination, s32 capacity, Args... args );
+};
 
-  //string_format returns the number of bytes written
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////inl/////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace bse
+{
   template<typename Arg> INLINE s32 string_format_internal( char* destination, s32 capacity, Arg value );
+
+  template<typename Arg> s32 string_format( char* destination, s32 capacity, Arg value )
+  {
+    s32 bytesWritten = string_format_internal( destination, capacity, value );
+
+    bytesWritten = min( capacity - 1, bytesWritten );
+    destination[bytesWritten] = '\0'; //end of string_format
+
+    return bytesWritten + 1;
+  }
+
   template<typename Arg, typename... Args>
   INLINE s32 string_format( char* destination, s32 capacity, Arg arg, Args... args )
   {
@@ -73,37 +99,16 @@ namespace bse
   template<> s32 string_format_internal<s32>( char* destination, s32 capacity, s32 value );
   template<> s32 string_format_internal<s16>( char* destination, s32 capacity, s16 value );
   template<> s32 string_format_internal<s8>( char* destination, s32 capacity, s8 value );
-
   template<> s32 string_format_internal<int2>( char* destination, s32 capacity, int2 value );
   template<> s32 string_format_internal<float2>( char* destination, s32 capacity, float2 value );
 
   s32 string_format_float( char* destination, s32 capacity, float value, s32 const postPeriodDigits );
   template<> s32 string_format_internal<float>( char* destination, s32 capacity, float value ) { return string_format_float( destination, capacity, value, 2 ); }
 
-  template<bool internal, typename Arg> INLINE s32 string_format( char* destination, s32 capacity, Arg value ) { static_assert(0); } //type doesn't exist for formatting yet, sorry :(
-
-  template<typename Arg> INLINE s32 string_format( char* destination, s32 capacity, Arg value )
-  {
-    s32 bytesWritten = string_format_internal( destination, capacity, value );
-
-    bytesWritten = min( capacity - 1, bytesWritten );
-    destination[bytesWritten] = '\0'; //end of string_format
-
-    return bytesWritten + 1;
-  }
-};
+  template<typename Arg> INLINE s32 string_format_internal( char* destination, s32 capacity, Arg value ) { static_assert(BSE_ALWAYS_FALSE( Arg )); } //type doesn't exist for formatting yet, sorry :(
 
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////inl/////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace bse
-{
   template<> s32 string_format_internal<char const*>( char* destination, s32 capacity, char const* value )
   {
     s32 result = 0;
@@ -130,7 +135,7 @@ namespace bse
     {
       if ( value )
       {
-        u64 divisor = 10000000000000000000;
+        u64 divisor = 10000000000000000000ULL;
         while ( divisor && capacity > result )
         {
           u8 place = u8( value / divisor );

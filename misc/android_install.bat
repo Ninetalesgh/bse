@@ -1,10 +1,12 @@
 @echo off
 
-set adb="C:\Users\CamilloLukesch\AppData\Local\Android\Sdk\platform-tools\adb"
+set package_to_install=%1
+set package=%2
 
-set package=com.bse.core
+if "%package%"=="" set package=com.bse.core
+
+set adb="%ANDROID_SDK_ROOT%\platform-tools\adb"
 
 
 %adb% uninstall %package%
-
-%adb% install "C:\personal\bse\build\androidtest\android\debug\androidtest_debug.apk"
+%adb% install %package_to_install%

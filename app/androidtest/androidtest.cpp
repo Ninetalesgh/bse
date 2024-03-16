@@ -1,17 +1,9 @@
-//#include "androidtest.h"
+#include "androidtest.h"
 
-#include <jni.h>
-#include <string>
 
-extern "C" JNIEXPORT jstring
 
-JNICALL
-Java_com_bse_core_BseMainActivity_stringFromJNI(
-        JNIEnv * env,
-        jobject /* this */ ) {
-  char hello[] = "Hello from C++";
-  return env->NewStringUTF( hello );
-}
+
+
 
 
 
@@ -30,8 +22,11 @@ void on_reload()
   //called once every time you hot reload
 }
 
+void testfun( int, bse::String ) {}
+
 void tick()
 {
+  auto fun2 = bse::make_function( &on_reload );
+  auto fun = bse::make_function( &testfun );
   //called once every frame
 }
-

@@ -19,11 +19,11 @@ namespace bse
   {
     atomic32() : value( 0 ) {}
     atomic32( s32 value ) : value( value ) {}
-    INLINE operator s32 volatile() const { return value; }
+    INLINE operator s32() const { return value; }
     INLINE s32 increment() { return interlocked_increment( &value ); }
-    INLINE s32 increment_unsafe() { return ++value; }
+    INLINE s32 increment_unsafe() { value = value + 1; return value; }
     INLINE s32 decrement() { return interlocked_decrement( &value ); }
-    INLINE s32 decrement_unsafe() { return --value; }
+    INLINE s32 decrement_unsafe() { value = value - 1; return value; }
     INLINE s32 compare_exchange( s32 new_value, s32 comparand ) { return interlocked_compare_exchange( &value, new_value, comparand ); }
   private:
     s32 volatile value;
@@ -55,10 +55,10 @@ namespace bse
     void lock( atomic32& lock );
     void unlock( atomic32& lock );
 
-    void sleep( s32 milliseconds );
+    INLINE void sleep( s32 milliseconds );
 
-    u32 is_current_thread( thread::Context const* );
-    u32 get_current_thread_id();
+    INLINE bool is_current_thread( thread::Context const* );
+    INLINE u32 get_current_thread_id();
 
     void request_pause( thread::Context* );
     void request_unpause( thread::Context* );
@@ -66,7 +66,7 @@ namespace bse
     void pause_thread_if_requested( thread::Context* );
     void pause_thread_if_requested( thread::Context*, s32 millisecondsSleepPerPoll );
 
-    void write_barrier();
+    INLINE void write_barrier();
   };
 };
 
@@ -129,19 +129,21 @@ namespace bse
 #include <xthreads.h>
 #include <intrin.h>
 
-INLINE s16   interlocked_increment16( s16 volatile* value ) { return _InterlockedIncrement16( (s16*) value ); }
-INLINE s16   interlocked_decrement16( s16 volatile* value ) { return _InterlockedDecrement16( (s16*) value ); }
-INLINE s32   interlocked_increment( s32 volatile* value ) { return _InterlockedIncrement( (long*) value ); }
-INLINE s32   interlocked_decrement( s32 volatile* value ) { return _InterlockedDecrement( (long*) value ); }
-INLINE s32   interlocked_exchange( s32 volatile* target, s32 value ) { return _InterlockedExchange( (long*) target, (long) value ); }
-INLINE s32   interlocked_compare_exchange( s32 volatile* value, s32 new_value, s32 comparand ) { return _InterlockedCompareExchange( (long*) value, new_value, comparand ); }
-INLINE void* interlocked_compare_exchange_ptr( void* volatile* value, void* new_value, void* comparand ) { return _InterlockedCompareExchangePointer( value, new_value, comparand ); }
+s16   interlocked_increment16( s16 volatile* value ) { return _InterlockedIncrement16( (s16*) value ); }
+s16   interlocked_decrement16( s16 volatile* value ) { return _InterlockedDecrement16( (s16*) value ); }
+s32   interlocked_increment( s32 volatile* value ) { return _InterlockedIncrement( (long*) value ); }
+s32   interlocked_decrement( s32 volatile* value ) { return _InterlockedDecrement( (long*) value ); }
+s32   interlocked_exchange( s32 volatile* target, s32 value ) { return _InterlockedExchange( (long*) target, (long) value ); }
+s32   interlocked_compare_exchange( s32 volatile* value, s32 new_value, s32 comparand ) { return _InterlockedCompareExchange( (long*) value, new_value, comparand ); }
+void* interlocked_compare_exchange_ptr( void* volatile* value, void* new_value, void* comparand ) { return _InterlockedCompareExchangePointer( value, new_value, comparand ); }
+
+#include <thread>
 
 namespace bse
 {
   namespace thread
   {
-    INLINE void sleep( s32 milliseconds )
+    void sleep( s32 milliseconds )
     {
       xtime timer {};
       s64 nanosecondsTarget = s64( _Xtime_get_ticks() ) * 100LL + s64( milliseconds ) * 1000000LL;
@@ -150,20 +152,67 @@ namespace bse
       _Thrd_sleep( &timer );
     }
 
-    INLINE u32 is_current_thread( thread::Context const* threadContext )
+    bool is_current_thread( thread::Context const* threadContext )
     {
       return threadContext->id == _Thrd_id();
     }
 
-    INLINE u32 get_current_thread_id()
+    u32 get_current_thread_id()
     {
       return _Thrd_id();
     }
 
-    INLINE void write_barrier()
+    void write_barrier()
     {
       __faststorefence();
     }
   };
 };
+
+#else
+
+s32   interlocked_increment( s32 volatile* value )
+{
+  //TODO
+  return 0;
+}
+s32   interlocked_decrement( s32 volatile* value )
+{
+  //TODO
+  return 0;
+}
+s32 interlocked_compare_exchange( s32 volatile* value, s32 new_value, s32 comparand )
+{
+  //TODO
+  return 0;
+}
+
+namespace bse
+{
+  namespace thread
+  {
+
+    void sleep( s32 milliseconds )
+    {
+      //TODO
+    }
+    bool is_current_thread( thread::Context const* threadContext )
+    {
+      return true;
+    }
+
+    u32 get_current_thread_id()
+    {
+      return 0;
+    }
+
+    void write_barrier()
+    {
+      //TODO
+    }
+  };
+};
+
+
+
 #endif

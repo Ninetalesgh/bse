@@ -28,7 +28,6 @@ public class AndroidGLSurfaceView extends GLSurfaceView {
   {
     setEGLContextClientVersion(2);
     setPreserveEGLContextOnPause(true);
-
   }
 
 

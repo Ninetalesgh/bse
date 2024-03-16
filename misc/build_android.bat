@@ -81,10 +81,8 @@ set code_path=..\%code_path%
   )
 )
 
-rem go back one more for the debug/development/release subdirectories
-set code_path=..\%code_path%
-
-set projectpath="C:\personal\bse\code\platform\android"
+for %%A in ("%code_path%\") do set temp_path=%%~dpA
+set code_path=%temp_path%
 
 set zipalign="%BSE_ANDROID_BUILD_TOOLS_PATH:"=%\zipalign.exe"
 set apksigner="%BSE_ANDROID_BUILD_TOOLS_PATH:"=%\apksigner.bat"
@@ -96,114 +94,129 @@ set sysroot="%BSE_CLANG_ROOT:"=%\sysroot"
 set javac="%BSE_JAVA_BIN_PATH:"=%\javac.exe"
 set keytool="%BSE_JAVA_BIN_PATH:"=%\keytool.exe"
 
+set projectpath="%code_path%\platform\android"
 set res_path="%projectpath:"=%\res"
 set src_path="%projectpath:"=%\src"
 set manifest_path="%projectpath:"=%\AndroidManifest.xml"
 set keypass=bse_generic_password
 
-
 set java_src_path=%src_path%\java
 set cpp_src_path=%src_path%\cpp
 
-set compiler_options=--sysroot=%sysroot% -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wformat -Werror=format-security -fno-limit-debug-info -fPIC
+
+set compiler_options=-I "%code_path%\" --sysroot=%sysroot% -g -DBSE_PLATFORM_ANDROID -std=c++20 -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wformat -Werror=format-security -fno-limit-debug-info -fPIC
 IF NOT %app_path%=="" set compiler_options=%compiler_options% -DBSE_BUILD_APP_PATH=%app_path%
 set linker_options=-static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--fatal-warnings -Wl,--gc-sections -Wl,--no-undefined -Qunused-arguments -landroid -llog -latomic -lm
 
 @REM ------------------------------------------------------------------------
-@REM -------- Debug Build ---------------------------------------------------
+@REM -------- Development Build ---------------------------------------------
 @REM ------------------------------------------------------------------------
-  IF x%build_config:debug=%==x%build_config% goto skip_build_debug
-  echo ------ Debug -------------------------------------------------
+  IF x%build_config:development=%==x%build_config% goto skip_build_development
+  echo ------ Development -------------------------------------------
   echo --------------------------------------------------------------
 
-  IF EXIST debug rmdir /s /q debug
-  IF NOT EXIST debug mkdir debug
-  pushd debug
+  IF EXIST development rmdir /s /q development
+  IF NOT EXIST development mkdir development
+  pushd development
 
   IF NOT EXIST obj mkdir obj
   IF NOT EXIST bin mkdir bin
   IF NOT EXIST key mkdir key
   IF NOT EXIST lib mkdir lib
 
-  for %%A in ("%out_path%\") do set debug_out_path=%%~dpA\debug
-  set debug_out_path=%debug_out_path:\\=\%
-  set result_unsigned=%debug_out_path%\bin\%out_name%_unsigned.apk
+  for %%A in ("%out_path%\") do set development_out_path=%%~dpA\development
+  set development_out_path=%development_out_path:\\=\%
+  set result_unsigned=%development_out_path%\bin\%out_name%_unsigned.apk
 
-  set keystore_path=%debug_out_path%\key\bse_key.jks
-  set result_zipaligned=%debug_out_path%\bin\%out_name%_zipaligned.apk
-  set result=%debug_out_path%\%out_name%_debug.apk
+  set keystore_path=%development_out_path%\key\bse_key.jks
+  set result_zipaligned=%development_out_path%\bin\%out_name%_zipaligned.apk
+  set result=%development_out_path%\%out_name%_development.apk
 
 @REM ------------------------------------------------------------------------
 @REM -------- Compile Native Libraries --------------------------------------
 @REM ------------------------------------------------------------------------
 
   pushd lib
-  IF NOT EXIST arm64-v8a mkdir arm64-v8a
-  IF NOT EXIST armeabi-v7a mkdir armeabi-v7a
-  IF NOT EXIST x86 mkdir x86
-  IF NOT EXIST x86_64 mkdir x86_64
-
-  set compiler_options_debug=%compiler_options% -DBSE_BUILD_DEBUG
-
+  set compiler_options_development=%compiler_options% -DBSE_BUILD_DEVELOPMENT
   echo Building native libraries...
+
+  IF NOT EXIST arm64-v8a mkdir arm64-v8a
   pushd arm64-v8a
   echo Building for arm64-v8a
-  %clang% %cpp_src_path%\bse_android.cpp --target=aarch64-none-linux-android29 %compiler_options_debug% -o lib%out_name%.so %linker_options%
+  %clang% %cpp_src_path%\bse_android.cpp --target=aarch64-none-linux-android29 %compiler_options_development% -o lib%out_name%.so %linker_options%
   popd
+  if %errorlevel% neq 0 (
+    popd rem lib
+    goto error_section_development
+  )
 
+  IF NOT EXIST armeabi-v7a mkdir armeabi-v7a
   pushd armeabi-v7a
   echo Building for armeabi-v7a
-  %clang% %cpp_src_path%\bse_android.cpp --target=armv7-none-linux-androideabi29 %compiler_options_debug% -o lib%out_name%.so %linker_options%
+  %clang% %cpp_src_path%\bse_android.cpp --target=armv7-none-linux-androideabi29 %compiler_options_development% -o lib%out_name%.so %linker_options%
   popd
+  if %errorlevel% neq 0 (
+    popd rem lib
+    goto error_section_development
+  )
 
-  pushd x86
-  echo Building for x86
-  %clang% %cpp_src_path%\bse_android.cpp --target=i686-none-linux-android29 %compiler_options_debug% -o lib%out_name%.so %linker_options%
-  popd
-
+  IF NOT EXIST x86_64 mkdir x86_64
   pushd x86_64
   echo Building for x86_64
-  %clang% %cpp_src_path%\bse_android.cpp --target=x86_64-none-linux-android29 %compiler_options_debug% -o lib%out_name%.so %linker_options%
+  %clang% %cpp_src_path%\bse_android.cpp --target=x86_64-none-linux-android29 %compiler_options_development% -o lib%out_name%.so %linker_options%
   popd
-  popd rem lib
+  if %errorlevel% neq 0 (
+    popd rem lib
+    goto error_section_development
+  )
 
-  if %errorlevel% neq 0 goto error_section
+  rem IF NOT EXIST x86 mkdir x86
+  rem pushd x86
+  rem echo Building for x86
+  rem %clang% %cpp_src_path%\bse_android.cpp --target=i686-none-linux-android29 %compiler_options_development% -o lib%out_name%.so %linker_options%
+  rem popd
+  rem if %errorlevel% neq 0 (
+  rem   popd rem lib
+  rem   goto error_section_development
+  rem )
+
+  popd rem lib
 
 @REM ------------------------------------------------------------------------
 @REM -------- Compile Java and Package --------------------------------------
 @REM ------------------------------------------------------------------------
 
-  %aapt% package -v -f -m -S %res_path% -J %debug_out_path% -M %manifest_path% -I %BSE_ANDROID_JAR_PATH%
-  if %errorlevel% neq 0 goto error_section
+  %aapt% package -v -f -m -S %res_path% -J %development_out_path% -M %manifest_path% -I %BSE_ANDROID_JAR_PATH%
+  if %errorlevel% neq 0 goto error_section_development
 
-  %javac% -d "obj" -source 1.7 -target 1.7 -classpath "%BSE_ANDROID_JAR_PATH%;%debug_out_path%\%out_name%" -sourcepath "%debug_out_path%" %java_src_path%\*
-  if %errorlevel% neq 0 goto error_section
+  %javac% -d "obj" -source 1.7 -target 1.7 -classpath "%BSE_ANDROID_JAR_PATH%;%development_out_path%\%out_name%" -sourcepath "%development_out_path%" %java_src_path%\*
+  if %errorlevel% neq 0 goto error_section_development
 
-  call %d8% %debug_out_path%\obj\%package_path%\* --output=%debug_out_path%\bin --no-desugaring
-  if %errorlevel% neq 0 goto error_section
+  call %d8% %development_out_path%\obj\%package_path%\* --output=%development_out_path%\bin --no-desugaring
+  if %errorlevel% neq 0 goto error_section_development
 
-  %aapt% package -v -f -m -S %res_path% -J %debug_out_path% -M %manifest_path% -I %BSE_ANDROID_JAR_PATH% -F %result_unsigned% %debug_out_path%\bin
-  if %errorlevel% neq 0 goto error_section
+  %aapt% package -v -f -m -S %res_path% -J %development_out_path% -M %manifest_path% -I %BSE_ANDROID_JAR_PATH% -F %result_unsigned% %development_out_path%\bin
+  if %errorlevel% neq 0 goto error_section_development
 
 @REM ------------------------------------------------------------------------
 @REM -------- Add Native Libraries to Package -------------------------------
 @REM ------------------------------------------------------------------------
 
   zip -r -u %result_unsigned% lib
-  if %errorlevel% neq 0 goto error_section
+  if %errorlevel% neq 0 goto error_section_development
 
 @REM ------------------------------------------------------------------------
 @REM -------- Sign Package --------------------------------------------------
 @REM ------------------------------------------------------------------------
 
   %keytool% -genkeypair -validity 10000 -dname "CN=%out_name%, C=AT" -keystore %keystore_path% -storepass %keypass% -keypass %keypass% -alias %out_name% -keyalg RSA
-  if %errorlevel% neq 0 goto error_section
+  if %errorlevel% neq 0 goto error_section_development
 
   %zipalign% -f 4 %result_unsigned% %result_zipaligned%
-  if %errorlevel% neq 0 goto error_section
+  if %errorlevel% neq 0 goto error_section_development
 
   call %apksigner% sign -v --out %result% --ks %keystore_path% --ks-key-alias %out_name% --ks-pass pass:"%keypass%" --key-pass pass:"%keypass%" %result_zipaligned% 
-  if %errorlevel% neq 0 goto error_section
+  if %errorlevel% neq 0 goto error_section_development
 
   rem I suppose verified everytime isn't necessary 
   rem call %apksigner% verify -v --print-certs %result%
@@ -212,9 +225,8 @@ set linker_options=-static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegm
 
   IF EXIST %result% echo Output file: %result%
   
-
-  popd rem debug
-:skip_build_debug
+  popd rem development
+:skip_build_development
 
 @REM ------------------------------------------------------------------------
 @REM -------- Release Build -------------------------------------------------
@@ -228,23 +240,35 @@ set linker_options=-static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegm
 
 :skip_build_release
 
-
-
 popd rem %out_path%
 
+@REM ------------------------------------------------------------------------
+@REM -------- Install apk if a device is connected --------------------------
+@REM ------------------------------------------------------------------------
 
-call android_install.bat
+  IF EXIST %result% (
+    echo --------------------------------------------------------------
+    echo ------ Installing apk ----------------------------------------
+    echo --------------------------------------------------------------
+    call android_install.bat %result% %package_path:\=.%
+    echo --------------------------------------------------------------
+  )
 
 goto end
+
+
 :help_section
   echo --------------------------------------------------------------
   echo ---- TODO HELP -----------------------------------------------
   echo --------------------------------------------------------------
 goto end
 
-:error_section
+:error_section_development
+  popd rem development
+  goto error_section
 
-popd
+:error_section
+  popd rem %out_path%
   echo ==============================================================
   echo --------------------------------------------------------------
   echo ---------- ERROR, PLEASE READ THE LOGS ABOVE ----------------- 
