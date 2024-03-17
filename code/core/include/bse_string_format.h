@@ -293,9 +293,11 @@ namespace bse
     return result + string_format_internal( destination, capacity - result, u8( value ) );
   }
 
+  #if defined(BSE_COMPILER_MSVC)
   #pragma push
   #pragma warning(disable:4996)
   #pragma warning(disable:4702)
+  #endif
   s32 string_format_float( char* destination, s32 capacity, float value, s32 const postPeriodDigits )
   {
     return sprintf( destination, "%.2f", value );
@@ -422,7 +424,9 @@ namespace bse
     }
 
   }
+  #if defined (BSE_COMPILER_MSVC)
   #pragma pop
+  #endif
 
   template<> s32 string_format_internal<int2>( char* destination, s32 capacity, int2 value )
   {

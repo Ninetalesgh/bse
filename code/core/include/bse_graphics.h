@@ -136,16 +136,23 @@ namespace bse
       count = elementCount;
       format = IndexFormat::U32;
       constexpr u32 size = sizeof( u32 );
-      if ( !handle ) { glCreateBuffers( 1, &handle ); }
-      glNamedBufferData( handle, size * count, elements, GL_STREAM_DRAW );
+      //if ( !handle ) { glCreateBuffers( 1, &handle ); }
+      //glNamedBufferData( handle, size * count, elements, GL_STREAM_DRAW );
+
+      if ( !handle ) { glGenBuffers( 1, &handle ); }
+      glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, handle );
+      glBufferData( GL_ELEMENT_ARRAY_BUFFER, size * count, elements, GL_STREAM_DRAW );
+      glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
     }
     void set_data( u16 const* elements, s32 elementCount )
     {
       count = elementCount;
       format = IndexFormat::U16;
       constexpr u32 size = sizeof( u16 );
-      if ( !handle ) { glCreateBuffers( 1, &handle ); }
-      glNamedBufferData( handle, size * count, elements, GL_STREAM_DRAW );
+      if ( !handle ) { glGenBuffers( 1, &handle ); }
+      glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, handle );
+      glBufferData( GL_ELEMENT_ARRAY_BUFFER, size * count, elements, GL_STREAM_DRAW );
+      glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
     }
     void set_data( bse::Vector<u32> const& elements ) { set_data( elements.data(), s32( elements.size() ) ); }
     void set_data( bse::Vector<u16> const& elements ) { set_data( elements.data(), s32( elements.size() ) ); }

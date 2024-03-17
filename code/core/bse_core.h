@@ -91,8 +91,10 @@ namespace bse
 
     ////////// System ////////////////////////////////////////////////////////////////////////////////////
     platformcallback::shutdown_fn* shutdown;
-    opengl_ext::get_proc_address_fn* opengl_get_process_address;
 
+    #if defined(BSE_PLATFORM_WINDOWS)
+    opengl_ext::get_proc_address_fn* opengl_get_process_address;
+    #endif
     //  bse::FileSystem* fileSystem = nullptr;
     //  bse::Font* font = nullptr;
     //  bse::GlyphTable* glyphTable = nullptr;

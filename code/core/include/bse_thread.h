@@ -128,6 +128,7 @@ namespace bse
 #if defined(_WIN32)
 #include <xthreads.h>
 #include <intrin.h>
+#include <thread>
 
 s16   interlocked_increment16( s16 volatile* value ) { return _InterlockedIncrement16( (s16*) value ); }
 s16   interlocked_decrement16( s16 volatile* value ) { return _InterlockedDecrement16( (s16*) value ); }
@@ -137,7 +138,6 @@ s32   interlocked_exchange( s32 volatile* target, s32 value ) { return _Interloc
 s32   interlocked_compare_exchange( s32 volatile* value, s32 new_value, s32 comparand ) { return _InterlockedCompareExchange( (long*) value, new_value, comparand ); }
 void* interlocked_compare_exchange_ptr( void* volatile* value, void* new_value, void* comparand ) { return _InterlockedCompareExchangePointer( value, new_value, comparand ); }
 
-#include <thread>
 
 namespace bse
 {
@@ -169,46 +169,52 @@ namespace bse
   };
 };
 
-#else
+#elif defined (__clang__)
+#include <threads.h>
 
 s32   interlocked_increment( s32 volatile* value )
 {
-  //TODO
-  return 0;
+  return __c11_atomic_fetch_add( (_Atomic(int) *) value, 1, 5 );
 }
 s32   interlocked_decrement( s32 volatile* value )
 {
-  //TODO
-  return 0;
+  return __c11_atomic_fetch_sub( (_Atomic(int) *) value, 1, 5 );
 }
 s32 interlocked_compare_exchange( s32 volatile* value, s32 new_value, s32 comparand )
 {
-  //TODO
-  return 0;
+  return __c11_atomic_compare_exchange_strong( (_Atomic(int) *) (value), &comparand, new_value, 4, 0 );
 }
 
 namespace bse
 {
   namespace thread
   {
-
     void sleep( s32 milliseconds )
     {
-      //TODO
+      timespec remaining {};
+      timespec timer {};
+      s64 nanosecondsTarget = s64( milliseconds ) * 1000000LL;
+      timer.tv_sec  = nanosecondsTarget / 1000000000LL;
+      timer.tv_nsec = nanosecondsTarget % 1000000000LL;
+
+      thrd_sleep( &timer, &remaining );
     }
+
     bool is_current_thread( thread::Context const* threadContext )
     {
       return true;
+      return threadContext->id == thread::ID( thrd_current() );
     }
 
     u32 get_current_thread_id()
     {
-      return 0;
+      return u32( thrd_current() );
     }
 
     void write_barrier()
     {
       //TODO
+      BREAK;
     }
   };
 };

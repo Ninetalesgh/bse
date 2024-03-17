@@ -17,9 +17,9 @@ namespace bse
   bool is_system_big_endian();
   char* align_pointer_forward( char* ptr, s32 powerof2 );
 
-  u16 leading_zeroes( u16 value );
-  u32 leading_zeroes( u32 value );
-  u64 leading_zeroes( u64 value );
+  u16 leading_zeros( u16 value );
+  u32 leading_zeros( u32 value );
+  u64 leading_zeros( u64 value );
   u16 round_up_to_next_power_of_two( u16 value );
   u32 round_up_to_next_power_of_two( u32 value );
   u64 round_up_to_next_power_of_two( u64 value );
@@ -33,7 +33,6 @@ namespace bse
 };
 
 
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -45,9 +44,12 @@ namespace bse
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if defined(__clang__) && (defined (BSE_ARCHITECTURE_X64) || defined(BSE_ARCHITECTURE_X86))
+# include <x86intrin.h>
+#endif
+
 namespace bse
 {
-
   u16 byte_to_u16( u8 highestByte, u8 byte1 )
   {
     return (u16( highestByte ) << 8) + u16( byte1 );
@@ -125,29 +127,35 @@ namespace bse
   }
 
 
-  #if defined(_WIN32)
 
-  INLINE u16 leading_zeroes( u16 value ) { return u16( __lzcnt16( value ) ); }
-  INLINE u32 leading_zeroes( u32 value ) { return u32( __lzcnt( value ) ); }
-  INLINE u64 leading_zeroes( u64 value ) { return u64( __lzcnt64( value ) ); }
-  #else 
+  #if defined(BSE_ARCHITECTURE_X64) || defined(BSE_ARCHITECTURE_X86)
+  INLINE u16 leading_zeros( u16 value ) { return u16( __lzcnt16( value ) ); }
 
-  INLINE u32 leading_zeroes( u32 value )
-  {
-    return 0;
-    //TODO
-  }
+  #if defined (__clang__)
+  INLINE u32 leading_zeros( u32 value ) { return u32( __lzcnt32( value ) ); }
+  #else
+  INLINE u32 leading_zeros( u32 value ) { return u32( __lzcnt( value ) ); }
   #endif
 
+  #if defined(BSE_ARCHITECTURE_X86)
+  INLINE u64 leading_zeros( u64 value ) { BREAK; return 0;/*TODO*/ }
+  #else
+  INLINE u64 leading_zeros( u64 value ) { return u64( __lzcnt64( value ) ); }
+  #endif
 
+  #elif defined(BSE_ARCHITECTURE_ARM_V7) || defined(BSE_ARCHITECTURE_ARM_V8)
+  INLINE u16 leading_zeros( u16 value ) { return u16( __builtin_clzs( value ) ); }
+  INLINE u32 leading_zeros( u32 value ) { return u32( __builtin_clzl( value ) ); }
+  INLINE u64 leading_zeros( u64 value ) { return u64( __builtin_clzll( value ) ); }
+  #endif
 
-  INLINE u16 round_up_to_next_power_of_two( u16 value ) { return (u16( 1 ) << (u16( 16 ) - leading_zeroes( u16( value - 1u ) ))); }
-  INLINE u32 round_up_to_next_power_of_two( u32 value ) { return (u32( 1 ) << (u32( 32 ) - leading_zeroes( u32( value - 1u ) ))); }
-  INLINE u64 round_up_to_next_power_of_two( u64 value ) { return (u64( 1 ) << (u64( 64 ) - leading_zeroes( u64( value - 1u ) ))); }
+  INLINE u16 round_up_to_next_power_of_two( u16 value ) { return (u16( 1 ) << (u16( 16 ) - leading_zeros( u16( value - 1u ) ))); }
+  INLINE u32 round_up_to_next_power_of_two( u32 value ) { return (u32( 1 ) << (u32( 32 ) - leading_zeros( u32( value - 1u ) ))); }
+  INLINE u64 round_up_to_next_power_of_two( u64 value ) { return (u64( 1 ) << (u64( 64 ) - leading_zeros( u64( value - 1u ) ))); }
 
-  INLINE u16 round_down_to_next_power_of_two( u16 value ) { return (u16( 1 ) << (u16( 15 ) - leading_zeroes( u16( value ) ))); }
-  INLINE u32 round_down_to_next_power_of_two( u32 value ) { return (u32( 1 ) << (u32( 31 ) - leading_zeroes( u32( value ) ))); }
-  INLINE u64 round_down_to_next_power_of_two( u64 value ) { return (u64( 1 ) << (u64( 63 ) - leading_zeroes( u64( value ) ))); }
+  INLINE u16 round_down_to_next_power_of_two( u16 value ) { return (u16( 1 ) << (u16( 15 ) - leading_zeros( u16( value ) ))); }
+  INLINE u32 round_down_to_next_power_of_two( u32 value ) { return (u32( 1 ) << (u32( 31 ) - leading_zeros( u32( value ) ))); }
+  INLINE u64 round_down_to_next_power_of_two( u64 value ) { return (u64( 1 ) << (u64( 63 ) - leading_zeros( u64( value ) ))); }
 
   INLINE s64 round_up_to_multiple_of( s64 value, s64 dividend ) { return value + ((dividend - (value % dividend)) % dividend); }
   INLINE s64 round_down_to_multiple_of( s64 value, s64 dividend ) { return value - (value % dividend); }

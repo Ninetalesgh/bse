@@ -70,7 +70,7 @@ namespace bse
       }
     }
 
-    return std::move( result );
+    return result;
   }
 
 };

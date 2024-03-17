@@ -1,7 +1,13 @@
 #pragma once 
-
-#include "external/bse_opengl_ext.h"
 #include "bse_common.h"
+
+#if !defined (BSE_PLATFORM_ANDROID)
+#include "external/bse_opengl_ext.h"
+#else
+#include <GLES3/gl32.h>
+#include <GLES3/gl3ext.h>
+#endif
+
 
 namespace bse
 {

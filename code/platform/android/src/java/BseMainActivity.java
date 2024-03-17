@@ -16,7 +16,8 @@ public class BseMainActivity extends Activity {
 
     AndroidGLSurfaceView openglView;
 
-    protected void onCreate(Bundle savedInstanceState) 
+
+    @Override protected void onCreate(Bundle savedInstanceState) 
     {
         super.onCreate(savedInstanceState);
         
@@ -25,6 +26,8 @@ public class BseMainActivity extends Activity {
         // this.setContentView (R.layout.hello);
         // TextView tv = (TextView) this.findViewById (R.id.MainTextView);
         // tv.setText(stringFromJNI());
+
+        stringFromJNI();
 
         openglView = new AndroidGLSurfaceView(this);
 
@@ -37,6 +40,17 @@ public class BseMainActivity extends Activity {
         // Example of a call to a native method
         //tv.setText("WHAT");
     }
+
+    @Override protected void onPause()
+    {
+      super.onPause();
+    }
+
+    @Override protected void onResume()
+    {
+      super.onResume();
+    }
+
 
 
     public native String stringFromJNI();

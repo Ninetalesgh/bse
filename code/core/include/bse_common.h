@@ -9,17 +9,16 @@
 #endif
 
 #if defined(_MSC_VER)
-# define BSEAPI __stdcall
-# define INLINE __forceinline
-#else
-# define BSEAPI 
-# define INLINE inline
-//# define INLINE inline __attribute__((always_inline))
+# define BSE_COMPILER_MSVC
+#endif
+
+#if defined(__clang__)
+# define BSE_COMPILER_CLANG
 #endif
 
 #define FUNCTION_NAME __func__
 #define FUNCTION_NAME_NAMESPACE __FUNCTION__
-#if defined(_MSC_VER)
+#if defined(BSE_COMPILER_MSVC)
 # define FUNCTION_SIGNATURE __FUNCSIG__
 #else
 # define FUNCTION_SIGNATURE __PRETTY_FUNCTION__
@@ -46,9 +45,23 @@
 #endif
 
 #if defined(BSE_ARCHITECTURE_X86)
-# define BSE_CALLING_CONVENTION_THIS_CALL __thiscall
+# if defined (__clang__)
+#   define BSE_CALLING_CONVENTION_THISCALL __attribute__((thiscall))
+# elif defined(BSE_COMPILER_MSVC)
+#   define BSE_CALLING_CONVENTION_THISCALL __thiscall
+# endif
 #else 
-# define BSE_CALLING_CONVENTION_THIS_CALL
+# define BSE_CALLING_CONVENTION_THISCALL
+#endif
+
+#if defined(BSE_ARCHITECTURE_X86)
+# if defined (__clang__)
+#   define BSE_CALLING_CONVENTION_STDCALL __attribute__((stdcall))
+# elif defined(BSE_COMPILER_MSVC)
+#   define BSE_CALLING_CONVENTION_STDCALL __stdcall
+# endif
+#else 
+# define BSE_CALLING_CONVENTION_STDCALL
 #endif
 
 #if !defined(BSE_ARCHITECTURE_ARM_V7)
@@ -57,7 +70,26 @@
 # define BSE_CALLING_CONVENTION_CDECL 
 #endif
 
+#if defined(__clang__)
+# define BSE_CALLING_CONVENTION_FASTCALL __attribute__((fastcall))
+#elif defined (BSE_COMPILER_MSVC)
+# define BSE_CALLING_CONVENTION_FASTCALL __fastcall
+#endif
 
+#if defined(BSE_COMPILER_MSVC)
+# define INLINE __forceinline
+#else
+# define INLINE __attribute__((always_inline))
+#endif
+
+#if defined(BSE_ARCHITECTURE_X86)
+# define BSEAPI __stdcall
+#else 
+# define BSEAPI
+#endif 
+
+#define BSE_STRINGIZE(s) _BSE_STRINGIZE_HELPER(s)
+#define _BSE_STRINGIZE_HELPER(s) #s
 
 #define array_count(array) (sizeof(array) / (sizeof((array)[0])))
 

@@ -31,8 +31,6 @@ namespace opengl_ext
   GLint init( get_proc_address_fn* get_proc_address_function );
 };
 
-void check_gl_error();
-
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
@@ -1743,52 +1741,6 @@ BSE_DEFINE_GL( glVertexArrayVertexBuffer );
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void check_gl_error()
-{
-  GLenum err;
-  while ( (err = glGetError()) != GL_NO_ERROR )
-  {
-    switch ( err )
-    {
-      case GL_INVALID_ENUM:
-      {
-        BREAK;
-        break;
-      }
-      case GL_INVALID_VALUE:
-      {
-        BREAK;
-        break;
-      }
-      case GL_INVALID_OPERATION:
-      {
-        BREAK;
-        break;
-      }
-      case GL_STACK_OVERFLOW:
-      {
-        BREAK;
-        break;
-      }
-      case GL_STACK_UNDERFLOW:
-      {
-        BREAK;
-        break;
-      }
-      case GL_OUT_OF_MEMORY:
-      {
-        BREAK;
-        break;
-      }
-      default:
-      {
-        //??
-        BREAK;
-      }
-    }
-  }
-}
 
 namespace opengl_ext
 {

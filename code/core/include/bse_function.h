@@ -134,18 +134,17 @@ namespace bse
   };
 
 
+  //this calling convention fiddling might be entirely redundant, I'll leave it here for now.
   template <typename T> struct _GetFunc { static_assert(BSE_ALWAYS_FALSE( T ), "Function does not accept non-function types as template arguments."); };
 
   template <typename R, typename... Args> struct _GetFunc<R BSE_CALLING_CONVENTION_CDECL( Args... )> { using type = _FuncClass<R, Args...>; };
-  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( BSE_CALLING_CONVENTION_THIS_CALL Arg::* )(Args...)> { using type = _MemberFuncClass<R, Arg, Args...>; };
-  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( BSE_CALLING_CONVENTION_THIS_CALL Arg::* )(Args...) const> { using type = _MemberFuncClass<R, Arg, Args...>; };
+  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( BSE_CALLING_CONVENTION_THISCALL Arg::* )(Args...)> { using type = _MemberFuncClass<R, Arg, Args...>; };
+  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( BSE_CALLING_CONVENTION_THISCALL Arg::* )(Args...) const> { using type = _MemberFuncClass<R, Arg, Args...>; };
 
   #if defined(BSE_ARCHITECTURE_X86)
-  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( __fastcall Arg::* )(Args...)> { using type = _MemberFuncClass<R, Arg, Args...>; };
-  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( __fastcall Arg::* )(Args...) const> { using type = _MemberFuncClass<R, Arg, Args...>; };
-
-  template <typename R, typename... Args> struct _GetFunc<R __stdcall(Args...)> { using type = _FuncClass<R, Args...>; };
-  template <typename R, typename... Args> struct _GetFunc<R __fastcall(Args...)> { using type = _FuncClass<R, Args...>; };
+  //I don't know what calling convention x86 wants for members, the thiscall and fastcall apparently aren't it. Whatever.
+  template <typename R, typename Arg, typename... Args> struct _GetFunc<R( Arg::* )(Args...)> { using type = _MemberFuncClass<R, Arg, Args...>; };
+  template <typename R, typename... Args> struct _GetFunc<R BSE_CALLING_CONVENTION_STDCALL( Args... )> { using type = _FuncClass<R, Args...>; };
   #endif
 
   #if defined(BSE_ARCHITECTURE_X64)

@@ -3,7 +3,7 @@
 // intrinsics
 #pragma once
 
-#if defined(BSE_ARCHITECTURE_X64) || defined(BSE_ARCHITECTURE_X86_64)
+#if defined(BSE_ARCHITECTURE_X64) || defined(BSE_ARCHITECTURE_X86)
 # ifdef KLEIN_SSE_4_1
 #     ifdef KLEIN_USE_SIMDE
 #         include <x86/sse4.1.h>

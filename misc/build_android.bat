@@ -103,10 +103,9 @@ set keypass=bse_generic_password
 set java_src_path=%src_path%\java
 set cpp_src_path=%src_path%\cpp
 
-
-set compiler_options=-I "%code_path%\" --sysroot=%sysroot% -g -DBSE_PLATFORM_ANDROID -std=c++20 -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wformat -Werror=format-security -fno-limit-debug-info -fPIC
+set compiler_options=-I "%code_path%\" --sysroot=%sysroot% -g -DANDROID -DBSE_PLATFORM_ANDROID -std=c++20 -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wformat -Wall -Werror=format-security -fno-limit-debug-info -fPIC
 IF NOT %app_path%=="" set compiler_options=%compiler_options% -DBSE_BUILD_APP_PATH=%app_path%
-set linker_options=-static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--fatal-warnings -Wl,--gc-sections -Wl,--no-undefined -Qunused-arguments -landroid -llog -latomic -lm
+set linker_options=-lGLESv3 -static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--fatal-warnings -Wl,--gc-sections -Wl,--no-undefined -Qunused-arguments -landroid -llog -latomic -lm 
 
 @REM ------------------------------------------------------------------------
 @REM -------- Development Build ---------------------------------------------
@@ -163,22 +162,22 @@ set linker_options=-static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegm
   IF NOT EXIST x86_64 mkdir x86_64
   pushd x86_64
   echo Building for x86_64
-  %clang% %cpp_src_path%\bse_android.cpp --target=x86_64-none-linux-android29 %compiler_options_development% -o lib%out_name%.so %linker_options%
+  %clang% %cpp_src_path%\bse_android.cpp --target=x86_64-none-linux-android29 %compiler_options_development% -mlzcnt -o lib%out_name%.so %linker_options%
   popd
   if %errorlevel% neq 0 (
     popd rem lib
     goto error_section_development
   )
-
-  rem IF NOT EXIST x86 mkdir x86
-  rem pushd x86
-  rem echo Building for x86
-  rem %clang% %cpp_src_path%\bse_android.cpp --target=i686-none-linux-android29 %compiler_options_development% -o lib%out_name%.so %linker_options%
-  rem popd
-  rem if %errorlevel% neq 0 (
-  rem   popd rem lib
-  rem   goto error_section_development
-  rem )
+  
+  IF NOT EXIST x86 mkdir x86
+  pushd x86
+  echo Building for x86
+  %clang% %cpp_src_path%\bse_android.cpp --target=i686-none-linux-android29 %compiler_options_development% -mlzcnt -o lib%out_name%.so %linker_options%
+  popd
+  if %errorlevel% neq 0 (
+    popd rem lib
+    goto error_section_development
+  )
 
   popd rem lib
 
@@ -242,6 +241,7 @@ set linker_options=-static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegm
 
 popd rem %out_path%
 
+
 @REM ------------------------------------------------------------------------
 @REM -------- Install apk if a device is connected --------------------------
 @REM ------------------------------------------------------------------------
@@ -250,7 +250,7 @@ popd rem %out_path%
     echo --------------------------------------------------------------
     echo ------ Installing apk ----------------------------------------
     echo --------------------------------------------------------------
-    call android_install.bat %result% %package_path:\=.%
+    call android_install_package.bat %result% %package_path:\=.%
     echo --------------------------------------------------------------
   )
 

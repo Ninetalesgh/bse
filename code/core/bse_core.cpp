@@ -9,7 +9,7 @@ void tick();
 struct AppData;
 
 #if defined(BSE_BUILD_APP_PATH)
-#include _STRINGIZE(BSE_BUILD_APP_PATH)
+#include BSE_STRINGIZE(BSE_BUILD_APP_PATH)
 #else
 struct AppData {}
 //include devenv here?
@@ -37,7 +37,7 @@ namespace bse
   void core_on_reload_internal( Platform* pf )
   {
     platform = pf;
-    #if  !defined(BSE_BUILD_SKIP_GRAPHICS)
+    #if defined(BSE_PLATFORM_WINDOWS) && !defined(BSE_BUILD_SKIP_GRAPHICS)
     opengl_ext::init( platform->opengl_get_process_address );
     #endif
 
