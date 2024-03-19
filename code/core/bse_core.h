@@ -24,9 +24,9 @@ namespace bse
     ////////// Virtual Memory ////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    using allocate_virtual_memory_fn = void* (void* address, s64 size);
+    using allocate_virtual_memory_fn = void* (s64 size);
     using decommit_virtual_memory_fn = void( void*, s64 size );
-    using free_virtual_memory_fn = void( void* );
+    using free_virtual_memory_fn = void( void*, s64 size );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
@@ -50,6 +50,13 @@ namespace bse
     using semaphore_destroy_fn = void( void* handle );
     using semaphore_release_fn = s32( void* handle, s32 releaseCount );
     using wait_for_locking_object_fn = void( void* handle, u32 waitMilliseconds );
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Vulkan ////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    using vulkan_create_surface_fn = VkSurfaceKHR( VkInstance );
+    using vulkan_physical_device_supports_presentation_fn = bool( VkPhysicalDevice, u32 familyIndex );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// System ////////////////////////////////////////////////////////////////////////////////////
@@ -88,11 +95,13 @@ namespace bse
     platformcallback::semaphore_destroy_fn* semaphore_destroy;
     platformcallback::semaphore_release_fn* semaphore_release;
     platformcallback::wait_for_locking_object_fn* wait_for_locking_object;
-
+    ////////// Vulkan ////////////////////////////////////////////////////////////////////////////////////
+    platformcallback::vulkan_create_surface_fn* vulkan_create_surface;
+    platformcallback::vulkan_physical_device_supports_presentation_fn* vulkan_physical_device_supports_presentation;
     ////////// System ////////////////////////////////////////////////////////////////////////////////////
     platformcallback::shutdown_fn* shutdown;
 
-    #if defined(BSE_PLATFORM_WINDOWS)
+    #if defined(BSE_RENDERER_OPENGL)
     opengl_ext::get_proc_address_fn* opengl_get_process_address;
     #endif
     //  bse::FileSystem* fileSystem = nullptr;
@@ -105,7 +114,7 @@ namespace bse
     struct Allocators
     {
       memory::VirtualMemoryLayout virtualMemory;
-      memory::Arena* temporary[3600];
+      memory::Arena* temporary[60];
       memory::Multipool* mainThread;
       memory::Multipool* threadSafe;
     } allocators;
@@ -128,8 +137,6 @@ namespace bse
       s32 processorCount;
       u32 virtualMemoryPageSize;
       u32 virtualMemoryAllocationGranularity;
-      char* virtualMemoryAddressBegin;
-      char* virtualMemoryAddressEnd;
       ProcessorArchitecture processorArchitecture;
     } info;
 

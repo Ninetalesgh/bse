@@ -1,5 +1,6 @@
 #pragma once
 #include "bse_common.h"
+#include "bse_container.h"
 
 namespace bse
 {
@@ -69,6 +70,7 @@ namespace bse
 namespace bse
 {
   template<typename Arg> INLINE s32 string_format_internal( char* destination, s32 capacity, Arg value );
+  template<typename Arg> INLINE s32 string_format_internal( char* destination, s32 capacity, bse::Vector<Arg> const& values );
 
   template<typename Arg> s32 string_format( char* destination, s32 capacity, Arg value )
   {
@@ -105,9 +107,35 @@ namespace bse
   s32 string_format_float( char* destination, s32 capacity, float value, s32 const postPeriodDigits );
   template<> s32 string_format_internal<float>( char* destination, s32 capacity, float value ) { return string_format_float( destination, capacity, value, 2 ); }
 
-  template<typename Arg> INLINE s32 string_format_internal( char* destination, s32 capacity, Arg value ) { static_assert(BSE_ALWAYS_FALSE( Arg )); } //type doesn't exist for formatting yet, sorry :(
+  template<typename Arg> INLINE s32 string_format_internal( char* destination, s32 capacity, bse::Vector<Arg> const& values )
+  {
+    char* writer = destination;
+    s32 capacityLeft = capacity;
 
+    s32 bytesWritten = string_format_internal( writer, capacityLeft, "{ " );
+    writer += bytesWritten;
+    capacityLeft -= bytesWritten;
 
+    for ( s32 i = 0; i < values.size(); ++i )
+    {
+      if ( capacityLeft <= 1 )
+      {
+        break;
+      }
+
+      bytesWritten = string_format( writer, capacityLeft, values[i], ", " ) - 1;
+      writer += bytesWritten;
+      capacityLeft -= bytesWritten;
+    }
+    bytesWritten = string_format_internal( writer - 2, capacityLeft + 2, " }" );
+
+    return capacity - capacityLeft;
+  }
+
+  template<typename Arg> INLINE s32 string_format_internal( char* destination, s32 capacity, Arg value )
+  {
+    static_assert(BSE_ALWAYS_FALSE( Arg ), "Type doesn't exist for string formatting yet (probably through a log call), feel free to make your own specialization.");
+  }
 
   template<> s32 string_format_internal<char const*>( char* destination, s32 capacity, char const* value )
   {

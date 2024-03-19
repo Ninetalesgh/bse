@@ -1,6 +1,10 @@
 @echo off
 IF NOT DEFINED DevEnvDir call shell_win64.bat
 
+IF NOT DEFINED VULKAN_SDK (
+  echo ERROR - VULKAN_SDK environment variable not set, aborting
+  goto help_section
+)
 setlocal EnableDelayedExpansion
 
 set bat_path=%~dp0
@@ -83,9 +87,9 @@ set code_path=..\%code_path%
 for %%A in ("%code_path%\") do set temp_path=%%~dpA
 set code_path=%temp_path%
 
-set compiler_options=/I "%code_path%\" /DBSE_PLATFORM_WINDOWS /GR- /EHa- /FC /MT /nologo /volatile:iso /W4 /wd4068 /wd4100 /wd4201 /wd4701 /wd4189 /wd4530
+set compiler_options=/I "%code_path%\" /I%VULKAN_SDK%\Include /DBSE_PLATFORM_WINDOWS /GR- /EHa- /FC /MT /nologo /volatile:iso /W4 /wd4068 /wd4100 /wd4201 /wd4701 /wd4189 /wd4530
 IF NOT %app_path%=="" set compiler_options=%compiler_options% /DBSE_BUILD_APP_PATH=%app_path%
-set linker_options=/link /opt:ref /incremental:no
+set linker_options=/link /opt:ref /incremental:no "%VULKAN_SDK%\Lib\vulkan-1.lib"
 set app_exports=/EXPORT:core_initialize_internal /EXPORT:core_on_reload_internal /EXPORT:core_tick_internal
 
 @REM ------------------------------------------------------------------------
@@ -116,7 +120,7 @@ set app_exports=/EXPORT:core_initialize_internal /EXPORT:core_on_reload_internal
 
   set compiler_options_development=%compiler_options% /Od /DBSE_BUILD_DEVELOPMENT
   cl /LD %code_path%\core\bse_core.cpp %compiler_options_development% /Fe:bse_core.dll %linker_options% %app_exports%
-  cl     %code_path%\bse_main.cpp /Fe:"%out_name%_develop.exe" %compiler_options_development% %linker_options% 
+  cl     %code_path%\bse_main.cpp /Fe:"%out_name%_development.exe" %compiler_options_development% %linker_options% 
   echo --------------------------------------------------------------
   popd
 :skip_build_develop

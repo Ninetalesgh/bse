@@ -3,6 +3,7 @@
 namespace bse
 {
 
+  #if defined(BSE_RENDERER_OPENGL)
   ShaderProgram load_shader( char const* filePath )
   {
     ShaderProgram result {};
@@ -72,5 +73,5 @@ namespace bse
 
     return result;
   }
-
+  #endif
 };

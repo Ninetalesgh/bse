@@ -1,4 +1,5 @@
 #pragma once
+#include "core/include/bse_common.h"
 
 //Winsock
 #pragma comment(lib,"ws2_32.lib")
@@ -8,28 +9,41 @@
 #pragma comment(lib,"winmm.lib")
 //CoInitialize
 #pragma comment(lib,"Ole32.lib")
+
 //Graphics
-#pragma comment(lib,"opengl32.lib")
 #pragma comment(lib,"Gdi32.lib")
+#pragma comment(lib,"opengl32.lib")
+#if defined(BSE_RENDERER_OPENGL)
+#endif
+
+// # if defined(BSE_PLATFORM_WINDOWS)
+// # elif defined(BSE_PLATFORM_ANDROID)
+// #  define VK_USE_PLATFORM_ANDROID_KHR
+// # endif
+
 
 
 #include "core/bse_core.h"
-
 #include "core/bse_precompiled_assets.generated.cpp"
 
 #include <stdio.h>
 
+#define VK_USE_PLATFORM_WIN32_KHR
 #include <windows.h>
+#include <vulkan/vulkan_win32.h>
+
 #ifdef ERROR
 # undef ERROR
 #endif
-
 #ifdef min
 # undef min
 #endif
 #ifdef max
 # undef max
 #endif
+
+
+
 #include <Xinput.h>
 
 //#include "bse_win64_opengl.h"
@@ -200,4 +214,42 @@ namespace win64
     // }
   }
   #endif
+
+  struct WindowInitParameter
+  {
+    char const* windowName;
+    WNDCLASSEX wndClass;
+    int2 pos;
+    int2 size;
+  };
+  WindowContext create_window( WindowInitParameter const& parameter )
+  {
+    WindowContext resultWindow {};
+    wchar_t nameBuffer[BSE_PATH_MAX] = {};
+    utf8_to_wchar( parameter.windowName, nameBuffer, BSE_PATH_MAX );
+    WNDCLASSEX const& wndClass = parameter.wndClass;
+
+    if ( RegisterClassEx( &wndClass ) )
+    {
+      resultWindow.handle = CreateWindowEx( WS_EX_ACCEPTFILES,                // DWORD dwExStyle,                                  
+                                     wndClass.lpszClassName, // LPCWSTR lpClassName,                                  
+                                     nameBuffer,                       // LPCWSTR lpWindowName,                     
+                                     WS_OVERLAPPEDWINDOW | WS_VISIBLE, // DWORD dwStyle,                                 
+                                     parameter.pos.x,                      // int X,               
+                                     parameter.pos.y,                      // int Y,              
+                                     parameter.size.x,                  // int nWidth,               
+                                     parameter.size.y,                 // int nHeight,              
+                                     /*parent window*/ 0,              // HWND hWndParent,                    
+                                     /*menu*/ 0,                       // HMENU hMenu,           
+                                     wndClass.hInstance,     // HINSTANCE hInstance,                             
+                                     0 );                              // LPVOID lpParam 
+    }
+
+    if ( !resultWindow.handle )
+    {
+      BREAK;
+    }
+
+    return resultWindow;
+  };
 };

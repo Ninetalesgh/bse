@@ -14,7 +14,22 @@ void initialize_platform( bse::PlatformInitParams* initParameters )
 
 void initialize_app_data()
 {
+  log_info( BSE_FUNCTION_NAME );
   //called once after the platform is fully initialized for you to initialize your app data
+
+
+  //#if defined(BSE_PLATFORM_WINDOWS)
+
+  bse::VulkanContext context {};
+
+  bse::init( context );
+  //#endif
+
+
+
+
+
+
 }
 
 void on_reload()
@@ -38,21 +53,3 @@ void tick()
 
 
 
-
-
-
-/*
-Tests that need to be done:
-TODO
-
-leading_zeros(u16,u32,u64);
-sleep
-is_current_thread
-get_current_thread_id
-interlocked_compare_exchange
-interlocked_increment
-interlocked_decrement
-
-
-
-*/

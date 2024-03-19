@@ -81,7 +81,7 @@ namespace bse
 
     [[nodiscard]] void* allocate_virtual_memory( s64 size );
     [[nodiscard]] void* reallocate_virtual_memory( void* ptr, s64 oldSize, s64 newSize );
-    void free_virtual_memory( void* ptr );
+    void free_virtual_memory( void* ptr, s64 size );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// Arena /////////////////////////////////////////////////////////////////////////////////////
@@ -194,9 +194,9 @@ namespace bse
     {
       constexpr static u32 ALIGNMENT = 64;
       Allocator* parent;
+      atomic32 allocatorLock;
       AllocatorType type;
       AllocatorPolicyFlags policy;
-      atomic32 allocatorLock;
     };
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -280,6 +280,5 @@ namespace bse
 
     template<typename T, typename U> bool operator ==( AllocatorProxy<T> const&, AllocatorProxy<U> const& ) { return true; }
     template<typename T, typename U> bool operator !=( AllocatorProxy<T> const&, AllocatorProxy<U> const& ) { return false; }
-
   };
 };

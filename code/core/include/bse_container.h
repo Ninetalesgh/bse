@@ -1,7 +1,6 @@
 #pragma once
 
 #include "bse_allocator.h"
-#include "bse_string_format.h"
 
 #include <map>
 #include <unordered_map>
@@ -59,6 +58,24 @@ namespace bse
   template<typename Key, typename Value> using HashMap = std::unordered_map<Key, Value, std::hash<Key>, std::equal_to<Key>, memory::AllocatorProxy<std::pair<Key const, Value>>>;
 
 };
+
+
+namespace bse
+{
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Vector ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  template<typename T> T swap_to_end_and_pop( Vector<T>& array, u32 index )
+  {
+    std::swap( array[index], array[array.size() - 1] );
+    T result = array[array.size() - 1];
+    array.pop_back();
+    return result;
+  }
+};
+
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 ///// Rest of the file is not in use, maybe at some point I'll come back to this  ////////////////////

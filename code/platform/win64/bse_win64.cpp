@@ -28,7 +28,8 @@ int bse_main( int argc, char** argv )
     //0) Refresh viewport if necessary
     if ( win64::global::platform.settings.windowSize != win64::global::mainWindow.cachedSize )
     {
-      win64::set_window_size( win64::global::platform.settings.windowSize );
+      //TODO opengl NO
+    //  win64::set_window_size( win64::global::platform.settings.windowSize );
     }
 
     //1) Pause thread if requested?
@@ -37,7 +38,7 @@ int bse_main( int argc, char** argv )
     bse_win64_loop();
 
     //3) Swap Buffers?
-    win64::opengl::swap_buffers( win64::global::mainWindow.deviceContext );
+   // win64::opengl::swap_buffers( win64::global::mainWindow.deviceContext );
 
     //4) Increase Frame Index
     ++win64::global::platform.thisFrame.frameIndex;
@@ -77,10 +78,7 @@ int bse_win64_init( int argc, char** argv )
     SYSTEM_INFO systemInfo {};
     GetSystemInfo( &systemInfo );
     bse::platform->info.processorCount = systemInfo.dwNumberOfProcessors;
-    bse::platform->info.virtualMemoryAllocationGranularity = systemInfo.dwAllocationGranularity;
     bse::platform->info.virtualMemoryPageSize = systemInfo.dwPageSize;
-    bse::platform->info.virtualMemoryAddressBegin = (char*) systemInfo.lpMinimumApplicationAddress;
-    bse::platform->info.virtualMemoryAddressEnd = (char*) systemInfo.lpMaximumApplicationAddress;
 
     bse::platform->info.processorArchitecture = bse::ProcessorArchitecture( systemInfo.wProcessorArchitecture );
 
@@ -174,7 +172,10 @@ int bse_win64_init( int argc, char** argv )
     parameter.wndClass.hCursor       = LoadCursor( (HINSTANCE) NULL, IDC_ARROW );
     parameter.wndClass.lpszClassName = L"bsewnd";
 
+    //win64::global::mainWindow = win64::create_window_init_opengl( parameter );
+
     win64::global::mainWindow = win64::create_window( parameter );
+
     assert( win64::global::mainWindow.handle );
 
   }

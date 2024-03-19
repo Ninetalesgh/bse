@@ -16,8 +16,8 @@ namespace win64
   ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  void* allocate_virtual_memory( void* address, s64 size );
-  void free_virtual_memory( void* allocationToFree );
+  void* allocate_virtual_memory( s64 size );
+  void free_virtual_memory( void* allocationToFree, s64 size );
   void decommit_virtual_memory( void* committedMemory, s64 size );
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -40,6 +40,13 @@ namespace win64
   void* semaphore_create( s32 initialCount, s32 maxCount );
   void semaphore_wait( void* handle, u32 waitMilliseconds );
   s32 semaphore_release( void* handle, s32 releaseCount );
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Vulkan ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  VkSurfaceKHR vulkan_create_surface( VkInstance instance );
+  bool vulkan_physical_device_supports_presentation( VkPhysicalDevice physicalDevice, u32 familyIndex );
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// System ////////////////////////////////////////////////////////////////////////////////////
@@ -95,7 +102,7 @@ namespace win64
   ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  void* allocate_virtual_memory( void* address, s64 size )
+  void* allocate_virtual_memory( s64 size )
   {
     if ( size > MegaBytes( 1 ) )
     {
@@ -112,7 +119,7 @@ namespace win64
       debug_log_info( "Reserving ", size, " Bytes of virtual Memory." );
     }
 
-    void* result = VirtualAlloc( address, (s64) size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE );
+    void* result = VirtualAlloc( 0, (s64) size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE );
     if ( !result )
     {
       windows_error();
@@ -128,7 +135,7 @@ namespace win64
     }
   }
 
-  void free_virtual_memory( void* allocationToFree )
+  void free_virtual_memory( void* allocationToFree, s64 size )
   {
     //free( allocationToFree );
     if ( !VirtualFree( allocationToFree, 0, MEM_RELEASE ) )
@@ -354,6 +361,27 @@ namespace win64
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Vulkan ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  VkSurfaceKHR vulkan_create_surface( VkInstance instance )
+  {
+    VkWin32SurfaceCreateInfoKHR createInfo = { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
+    createInfo.hinstance = GetModuleHandle( 0 );
+    createInfo.hwnd = global::mainWindow.handle;
+
+    VkSurfaceKHR surface = 0;
+    BSE_VK_CHECK( vkCreateWin32SurfaceKHR( instance, &createInfo, 0, &surface ) );
+    return surface;
+  }
+
+  bool vulkan_physical_device_supports_presentation( VkPhysicalDevice physicalDevice, u32 familyIndex )
+  {
+    return vkGetPhysicalDeviceWin32PresentationSupportKHR( physicalDevice, familyIndex );
+  }
+
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// System ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -422,8 +450,15 @@ namespace win64
     global::platform.semaphore_release = &semaphore_release;
     global::platform.wait_for_locking_object = &wait_for_locking_object;
 
+    ////////// Vulkan ////////////////////////////////////////////////////////////////////////////////////
+    global::platform.vulkan_create_surface = &vulkan_create_surface;
+    global::platform.vulkan_physical_device_supports_presentation = &vulkan_physical_device_supports_presentation;
+
     ////////// System //////////////////////////////////////////////////////////////////////////////////
     global::platform.shutdown = &shutdown;
+
+    #if defined(BSE_RENDERER_OPENGL)
     global::platform.opengl_get_process_address = &opengl_get_proc_address;
+    #endif
   }
 };

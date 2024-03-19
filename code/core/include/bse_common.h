@@ -4,6 +4,13 @@
 #include <initializer_list>
 #include <cmath>
 
+#define BSE_RENDERER_VULKAN
+//#define BSE_RENDERER_OPENGL
+
+#if !defined (BSE_PLATFORM_WINDOWS) && !defined (BSE_PLATFORM_ANDROID)
+#error "Please define either BSE_PLATFORM_WINDOWS or BSE_PLATFORM_ANDROID"
+#endif
+
 #if defined(BSE_BUILD_DEBUG) || defined(BSE_BUILD_DEVELOPMENT)
 #  define BSE_BUILD_DEBUG_DEVELOPMENT
 #endif
@@ -16,12 +23,12 @@
 # define BSE_COMPILER_CLANG
 #endif
 
-#define FUNCTION_NAME __func__
-#define FUNCTION_NAME_NAMESPACE __FUNCTION__
+#define BSE_FUNCTION_NAME __func__
+#define BSE_FUNCTION_NAME_NAMESPACE __FUNCTION__
 #if defined(BSE_COMPILER_MSVC)
-# define FUNCTION_SIGNATURE __FUNCSIG__
+# define BSE_FUNCTION_SIGNATURE __FUNCSIG__
 #else
-# define FUNCTION_SIGNATURE __PRETTY_FUNCTION__
+# define BSE_FUNCTION_SIGNATURE __PRETTY_FUNCTION__
 #endif
 
 #if defined(__x86_64__) || defined(_M_X64)
@@ -180,11 +187,9 @@ constexpr INLINE s64 GigaBytes( s64 gigaBytes ) { return MegaBytes( gigaBytes ) 
 #if defined(BSE_PLATFORM_WINDOWS)
 constexpr INLINE bool is_negative( float x ) { return (*(u32*) &x) & 0x80000000; }
 constexpr INLINE bool sign_match( float a, float b ) { return ((*(s32*) &a) ^ (*(s32*) &b)) >= 0; }
-#elif defined (BSE_PLATFORM_ANDROID)
+#elif defined(BSE_PLATFORM_ANDROID)
 constexpr INLINE bool is_negative( float x ) { return std::signbit( x ); }
 constexpr INLINE bool sign_match( float a, float b ) { return std::signbit( a ) == std::signbit( b ); }
-#else 
-#error "Please define either BSE_PLATFORM_WINDOWS or BSE_PLATFORM_ANDROID"
 #endif
 
 constexpr INLINE bool sign_match( s32 a, s32 b ) { return (a ^ b) >= 0; }

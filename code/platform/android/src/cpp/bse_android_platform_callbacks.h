@@ -17,9 +17,9 @@ namespace android
   ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  // void* allocate_virtual_memory( void* address, s64 size );
-  // void free_virtual_memory( void* allocationToFree );
-  // void decommit_virtual_memory( void* committedMemory, s64 size );
+  void* allocate_virtual_memory( s64 size );
+  void free_virtual_memory( void* allocationToFree, s64 size );
+  void decommit_virtual_memory( void* committedMemory, s64 size );
 
   // //////////////////////////////////////////////////////////////////////////////////////////////////////
   // ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
@@ -41,6 +41,13 @@ namespace android
   // void* semaphore_create( s32 initialCount, s32 maxCount );
   // void semaphore_wait( void* handle, u32 waitMilliseconds );
   // s32 semaphore_release( void* handle, s32 releaseCount );
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Vulkan ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  VkSurfaceKHR vulkan_create_surface( VkInstance instance );
+  bool vulkan_physical_device_supports_presentation( VkPhysicalDevice, u32 familyIndex );
 
   // //////////////////////////////////////////////////////////////////////////////////////////////////////
   // ////////// System ////////////////////////////////////////////////////////////////////////////////////
@@ -80,30 +87,40 @@ namespace android
   ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  // void* allocate_virtual_memory( void* address, s64 size )
-  // {
-  //   if ( size > MegaBytes( 1 ) )
-  //   {
-  //     s64 MBs = 1 + size / MegaBytes( 1 );
-  //     debug_log_info( "Reserving ", MBs, " MegaBytes of virtual Memory." );
-  //   }
-  //   else if ( size > KiloBytes( 1 ) )
-  //   {
-  //     s64 KBs = 1 + size / KiloBytes( 1 );
-  //     debug_log_info( "Reserving ", KBs, " KiloBytes of virtual Memory." );
-  //   }
-  //   else
-  //   {
-  //     debug_log_info( "Reserving ", size, " Bytes of virtual Memory." );
-  //   }
+  void* allocate_virtual_memory( s64 size )
+  {
+    if ( size > MegaBytes( 1 ) )
+    {
+      s64 MBs = 1 + size / MegaBytes( 1 );
+      debug_log_info( "Reserving ", MBs, " MegaBytes of virtual Memory." );
+    }
+    else if ( size > KiloBytes( 1 ) )
+    {
+      s64 KBs = 1 + size / KiloBytes( 1 );
+      debug_log_info( "Reserving ", KBs, " KiloBytes of virtual Memory." );
+    }
+    else
+    {
+      debug_log_info( "Reserving ", size, " Bytes of virtual Memory." );
+    }
 
-  //   void* result = VirtualAlloc( address, (s64) size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE );
-  //   if ( !result )
-  //   {
-  //     windows_error();
-  //   }
-  //   return result;
-  // }
+    s64 pageAlignment = (bse::platform->info.virtualMemoryPageSize - (size % bse::platform->info.virtualMemoryPageSize)) % bse::platform->info.virtualMemoryPageSize;
+
+    if ( pageAlignment )
+    {
+      debug_log_info( "Page alignment increases the allocation from ", size, " to ", size + pageAlignment );
+    }
+
+    void* result = mmap( 0, size + pageAlignment, PROT_READ | PROT_WRITE | PROT_EXEC,
+            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0 );
+
+    if ( result == MAP_FAILED )
+    {
+      log_info( "mmap() failed with errno: ", errno );
+      assert( false );
+    }
+    return result;
+  }
 
   // void decommit_virtual_memory( void* committedMemory, s64 size )
   // {
@@ -113,14 +130,13 @@ namespace android
   //   }
   // }
 
-  // void free_virtual_memory( void* allocationToFree )
-  // {
-  //   //free( allocationToFree );
-  //   if ( !VirtualFree( allocationToFree, 0, MEM_RELEASE ) )
-  //   {
-  //     windows_error();
-  //   }
-  // }
+  void free_virtual_memory( void* allocationToFree, s64 size )
+  {
+    if ( munmap( allocationToFree, size ) != 0 )
+    {
+      log_error( "free virtual memory failed with errno: ", errno );
+    }
+  }
 
   // //////////////////////////////////////////////////////////////////////////////////////////////////////
   // ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
@@ -338,6 +354,33 @@ namespace android
   //   }
   // }
 
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Vulkan ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  VkSurfaceKHR vulkan_create_surface( VkInstance instance )
+  {
+    VkSurfaceKHR result = 0;
+    VkAndroidSurfaceCreateInfoKHR createInfo = { VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR };
+    if ( global::window == nullptr )
+    {
+      log_error( "attempting to create vulkan surface without ANativeWindow being initialized." );
+    }
+    else
+    {
+      createInfo.flags = 0;
+      createInfo.window = global::window;
+
+      BSE_VK_CHECK( vkCreateAndroidSurfaceKHR( instance, &createInfo, 0, &result ) );
+    }
+    return result;
+  }
+
+  bool vulkan_physical_device_supports_presentation( VkPhysicalDevice, u32 familyIndex )
+  {
+    return true;
+  }
+
   // //////////////////////////////////////////////////////////////////////////////////////////////////////
   // ////////// System ////////////////////////////////////////////////////////////////////////////////////
   // //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -386,7 +429,7 @@ namespace android
     global::platform.debug_log = &debug_log;
 
     // ////////// Memory //////////////////////////////////////////////////////////////////////////////////
-    // global::platform.allocate_virtual_memory = &allocate_virtual_memory;
+    global::platform.allocate_virtual_memory = &allocate_virtual_memory;
     // global::platform.free_virtual_memory = &free_virtual_memory;
     // global::platform.decommit_virtual_memory = &decommit_virtual_memory;
 
@@ -406,6 +449,10 @@ namespace android
     // global::platform.semaphore_destroy = &close_handle;
     // global::platform.semaphore_release = &semaphore_release;
     // global::platform.wait_for_locking_object = &wait_for_locking_object;
+
+    ////////// Vulkan ////////////////////////////////////////////////////////////////////////////////////
+    global::platform.vulkan_create_surface = &vulkan_create_surface;
+    global::platform.vulkan_physical_device_supports_presentation = &vulkan_physical_device_supports_presentation;
 
     // ////////// System //////////////////////////////////////////////////////////////////////////////////
     // global::platform.shutdown = &shutdown;

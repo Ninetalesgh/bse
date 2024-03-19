@@ -5,14 +5,7 @@
 
 namespace win64
 {
-  struct WindowInitParameter
-  {
-    char const* windowName;
-    WNDCLASSEX wndClass;
-    int2 pos;
-    int2 size;
-  };
-  WindowContext create_window( WindowInitParameter const& parameter );
+  WindowContext create_window_init_opengl( WindowInitParameter const& parameter );
 
   namespace opengl
   {
@@ -316,7 +309,7 @@ namespace win64
 
     void resize_viewport( int2 dimensions )
     {
-      glViewport( 0, 0, dimensions.x, dimensions.y );
+      // glViewport( 0, 0, dimensions.x, dimensions.y );
     }
   };
 
@@ -327,7 +320,7 @@ namespace win64
     win64::opengl::resize_viewport( size );
   }
 
-  WindowContext create_window( WindowInitParameter const& parameter )
+  WindowContext create_window_init_opengl( WindowInitParameter const& parameter )
   {
     WindowContext resultWindow {};
     wchar_t nameBuffer[BSE_PATH_MAX] = {};

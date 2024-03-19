@@ -37,7 +37,7 @@ namespace bse
   void core_on_reload_internal( Platform* pf )
   {
     platform = pf;
-    #if defined(BSE_PLATFORM_WINDOWS) && !defined(BSE_BUILD_SKIP_GRAPHICS)
+    #if defined(BSE_RENDERER_OPENGL)
     opengl_ext::init( platform->opengl_get_process_address );
     #endif
 

@@ -16,6 +16,5 @@
 
 #include "bse_input.h"
 #include "bse_graphics.h"
-#include "bse_opengl.h"
 
 #include "bse_unsorted_definitions.h"

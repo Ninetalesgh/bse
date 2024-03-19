@@ -13,8 +13,6 @@ namespace bse
 {
   namespace opengl
   {
-    void check_gl_error();
-
     INLINE void set_uniform( u32 slot, float const* elements, u32 elementCount = 1 ) { glUniform1fv( slot, GLsizei( elementCount ), elements ); }
     INLINE void set_uniform( u32 slot, float2 const* elements, u32 elementCount = 1 ) { glUniform2fv( slot, GLsizei( elementCount ), (float*) elements ); }
     INLINE void set_uniform( u32 slot, float3 const* elements, u32 elementCount = 1 ) { glUniform3fv( slot, GLsizei( elementCount ), (float*) elements ); }
@@ -36,52 +34,6 @@ namespace bse
 {
   namespace opengl
   {
-    void check_gl_error()
-    {
-      GLenum err;
-      while ( (err = glGetError()) != GL_NO_ERROR )
-      {
-        switch ( err )
-        {
-          case GL_INVALID_ENUM:
-          {
-            BREAK;
-            break;
-          }
-          case GL_INVALID_VALUE:
-          {
-            BREAK;
-            break;
-          }
-          case GL_INVALID_OPERATION:
-          {
-            BREAK;
-            break;
-          }
-          case GL_STACK_OVERFLOW:
-          {
-            BREAK;
-            break;
-          }
-          case GL_STACK_UNDERFLOW:
-          {
-            BREAK;
-            break;
-          }
-          case GL_OUT_OF_MEMORY:
-          {
-            BREAK;
-            break;
-          }
-          default:
-          {
-            //??
-            BREAK;
-          }
-        }
-      }
-    }
-
     struct OGLFileData
     {
       char const* data;
@@ -216,9 +168,5 @@ namespace bse
 
       return create_shader_program( h, vs, fs );
     }
-
-
-
-
   };
 };

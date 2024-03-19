@@ -105,7 +105,10 @@ set cpp_src_path=%src_path%\cpp
 
 set compiler_options=-I "%code_path%\" --sysroot=%sysroot% -g -DANDROID -DBSE_PLATFORM_ANDROID -std=c++20 -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wformat -Wall -Werror=format-security -fno-limit-debug-info -fPIC
 IF NOT %app_path%=="" set compiler_options=%compiler_options% -DBSE_BUILD_APP_PATH=%app_path%
-set linker_options=-lGLESv3 -static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--fatal-warnings -Wl,--gc-sections -Wl,--no-undefined -Qunused-arguments -landroid -llog -latomic -lm 
+set linker_options=-lGLESv3 -lvulkan -static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--fatal-warnings -Wl,--gc-sections -Wl,--no-undefined -Qunused-arguments -landroid -llog -latomic -lm 
+
+rem QUICK HACK TO REDIRECT DEBUG TO DEVELOPMENT UNTIL A DEBUGGER RUNS ON AN ANDROID DEVICE
+IF NOT x%build_config:debug=%==x%build_config% set build_config=%build_config%-development
 
 @REM ------------------------------------------------------------------------
 @REM -------- Development Build ---------------------------------------------
@@ -149,35 +152,35 @@ set linker_options=-lGLESv3 -static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--
     goto error_section_development
   )
 
-  IF NOT EXIST armeabi-v7a mkdir armeabi-v7a
-  pushd armeabi-v7a
-  echo Building for armeabi-v7a
-  %clang% %cpp_src_path%\bse_android.cpp --target=armv7-none-linux-androideabi29 %compiler_options_development% -o lib%out_name%.so %linker_options%
-  popd
-  if %errorlevel% neq 0 (
-    popd rem lib
-    goto error_section_development
-  )
+  @REM IF NOT EXIST armeabi-v7a mkdir armeabi-v7a
+  @REM pushd armeabi-v7a
+  @REM echo Building for armeabi-v7a
+  @REM %clang% %cpp_src_path%\bse_android.cpp --target=armv7-none-linux-androideabi29 %compiler_options_development% -o lib%out_name%.so %linker_options%
+  @REM popd
+  @REM if %errorlevel% neq 0 (
+  @REM   popd rem lib
+  @REM   goto error_section_development
+  @REM )
 
-  IF NOT EXIST x86_64 mkdir x86_64
-  pushd x86_64
-  echo Building for x86_64
-  %clang% %cpp_src_path%\bse_android.cpp --target=x86_64-none-linux-android29 %compiler_options_development% -mlzcnt -o lib%out_name%.so %linker_options%
-  popd
-  if %errorlevel% neq 0 (
-    popd rem lib
-    goto error_section_development
-  )
+  @REM IF NOT EXIST x86_64 mkdir x86_64
+  @REM pushd x86_64
+  @REM echo Building for x86_64
+  @REM %clang% %cpp_src_path%\bse_android.cpp --target=x86_64-none-linux-android29 %compiler_options_development% -mlzcnt -o lib%out_name%.so %linker_options%
+  @REM popd
+  @REM if %errorlevel% neq 0 (
+  @REM   popd rem lib
+  @REM   goto error_section_development
+  @REM )
   
-  IF NOT EXIST x86 mkdir x86
-  pushd x86
-  echo Building for x86
-  %clang% %cpp_src_path%\bse_android.cpp --target=i686-none-linux-android29 %compiler_options_development% -mlzcnt -o lib%out_name%.so %linker_options%
-  popd
-  if %errorlevel% neq 0 (
-    popd rem lib
-    goto error_section_development
-  )
+  @REM IF NOT EXIST x86 mkdir x86
+  @REM pushd x86
+  @REM echo Building for x86
+  @REM %clang% %cpp_src_path%\bse_android.cpp --target=i686-none-linux-android29 %compiler_options_development% -mlzcnt -o lib%out_name%.so %linker_options%
+  @REM popd
+  @REM if %errorlevel% neq 0 (
+  @REM   popd rem lib
+  @REM   goto error_section_development
+  @REM )
 
   popd rem lib
 
@@ -187,6 +190,9 @@ set linker_options=-lGLESv3 -static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--
 
   %aapt% package -v -f -m -S %res_path% -J %development_out_path% -M %manifest_path% -I %BSE_ANDROID_JAR_PATH%
   if %errorlevel% neq 0 goto error_section_development
+  echo --------------------------------------------------------------
+  echo ------ Compiling Java ----------------------------------------
+  echo --------------------------------------------------------------
 
   %javac% -d "obj" -source 1.7 -target 1.7 -classpath "%BSE_ANDROID_JAR_PATH%;%development_out_path%\%out_name%" -sourcepath "%development_out_path%" %java_src_path%\*
   if %errorlevel% neq 0 goto error_section_development

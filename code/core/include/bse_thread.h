@@ -25,6 +25,7 @@ namespace bse
     INLINE s32 decrement() { return interlocked_decrement( &value ); }
     INLINE s32 decrement_unsafe() { value = value - 1; return value; }
     INLINE s32 compare_exchange( s32 new_value, s32 comparand ) { return interlocked_compare_exchange( &value, new_value, comparand ); }
+    INLINE void set( s32 val ) { value = val; }
   private:
     s32 volatile value;
   };

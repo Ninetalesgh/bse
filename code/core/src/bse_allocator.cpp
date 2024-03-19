@@ -124,7 +124,7 @@ namespace bse
           }
           case AllocatorType::VirtualMemory:
           {
-            free_virtual_memory( ptr );
+            free_virtual_memory( ptr, size );
             break;
           }
           default:
@@ -157,7 +157,8 @@ namespace bse
           }
           case AllocatorType::VirtualMemory:
           {
-            free_virtual_memory( ptr );
+            BREAK;
+            //free_virtual_memory( ptr );
             break;
           }
           case AllocatorType::Multipool:
@@ -188,7 +189,7 @@ namespace bse
         log_warning( "Allocation of ", size, " bytes only uses ", fill, " bytes of virtual page size ", platform->info.virtualMemoryPageSize, "." );
       }
       #endif
-      return platform->allocate_virtual_memory( nullptr, size );
+      return platform->allocate_virtual_memory( size );
     }
 
     void* reallocate_virtual_memory( void* ptr, s64 oldSize, s64 newSize )
@@ -197,14 +198,14 @@ namespace bse
       if ( oldSize )
       {
         memmove( newPtr, ptr, min( oldSize, newSize ) );
-        free_virtual_memory( ptr );
+        free_virtual_memory( ptr, oldSize );
       }
       return newPtr;
     }
 
-    void free_virtual_memory( void* ptr )
+    void free_virtual_memory( void* ptr, s64 size )
     {
-      platform->free_virtual_memory( ptr );
+      platform->free_virtual_memory( ptr, size );
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -378,16 +379,53 @@ namespace bse
     {
       bool const locked = flags_contain( pool->policy, AllocatorPolicyFlags::ThreadSafe );
       if ( locked ) thread::lock_atomic( pool->allocatorLock );
-
-      if ( MonotonicPool::Slot* slot = pool->next )
+      MonotonicPool::Slot* slot = pool->next;
+      if ( slot && slot->next != pool->next )
       {
         pool->next = slot->next;
-
-        if ( !pool->next && (char*) slot < pool->begin + pool->size )
+        if ( !pool->next )
         {
-          pool->next = (MonotonicPool::Slot*) (((char*) slot) + pool->granularity);
-          pool->next->next = nullptr;
+          //If this is the first time filling the pool, just advance, otherwise close the loop
+          if ( ((char*) slot) < (pool->begin + pool->size - pool->granularity) )
+          {
+            pool->next = (MonotonicPool::Slot*) (((char*) slot) + pool->granularity);
+            pool->next->next = nullptr;
+          }
+          else
+          {
+            pool->next =(MonotonicPool::Slot*) &pool->next;
+          }
         }
+
+        // if ( pool->granularity == 80 )
+        // {
+        //   s32 chain = 0;
+        //   auto test = pool->next;
+        //   s64 slotsLeft = 0;
+        //   if ( test )
+        //   {
+        //     auto poop = test;
+        //     while ( test = test->next ) { ++chain; poop = test; if ( test == pool->next ) break; }
+        //     slotsLeft = (s64( pool->size ) - (s64( poop ) - s64( pool->begin ))) / pool->granularity;
+        //     slotsLeft += chain;
+        //   }
+
+        //   int poolId = extraPools;
+        //   auto bla = pool;
+        //   while ( bla = bla->nextPool ) { --poolId; }
+
+        //   log_info( "alloc: ", s64( slot ), ", chain: ", chain, ", left: ", slotsLeft, ", pid: ", poolId );
+        //   for ( auto h : huh )
+        //   {
+        //     if ( h == s64( slot ) )
+        //     {
+        //       BREAK;
+        //       break;
+        //     }
+        //   }
+
+        //   huh.push_back( s64( slot ) );
+        // }
 
         if ( locked ) thread::unlock_atomic( pool->allocatorLock );
         return slot;
@@ -412,6 +450,36 @@ namespace bse
         MonotonicPool::Slot* slot = (MonotonicPool::Slot*) ptr;
         slot->next = pool->next;
         pool->next = slot;
+
+        // if ( pool->granularity == 80 )
+        // {
+        //   s64 end = huh.size();
+        //   for ( s32 i= 0; i < end; ++i )
+        //   {
+        //     if ( huh[i] == s64( ptr ) )
+        //     {
+        //       huh.erase( huh.begin() + i );
+        //       break;
+        //     }
+        //   }
+        //   s32 chain = 0;
+        //   auto test = pool->next;
+        //   auto poop = test;
+        //   while ( test = test->next ) { ++chain; poop = test; if ( test == pool->next ) break; }
+
+        //   int poolId = extraPools;
+        //   auto bla = pool;
+        //   while ( bla = bla->nextPool ) { --poolId; }
+        //   s64 slotsLeft = 0;
+
+        //   if ( poop )
+        //   {
+        //     slotsLeft = (s64( pool->size ) - (s64( poop ) - s64( pool->begin ))) / pool->granularity;
+        //     slotsLeft += chain;
+        //   }
+
+        //   log_info( "free : ", s64( ptr ), ", chain: ", chain, ", left: ", slotsLeft, ", pid: ", poolId );
+        // }
       }
       else if ( pool->nextPool )
       {
@@ -556,7 +624,7 @@ namespace bse
 
       if ( result )
       {
-        result->allocatorLock = atomic32 {};
+        result->allocatorLock       = atomic32 {};
         result->type                = AllocatorType::Multipool;
         result->policy              = policy;
         result->parent              = parent;
@@ -637,9 +705,9 @@ namespace bse
       layout.parent      = nullptr;
 
       //hacked for now, probably won't matter for a lot of platforms
-      constexpr s64 networkSize = GigaBytes( 4 );
-      constexpr s64 temporarySize = GigaBytes( 16 );
-      constexpr s64 generalSize = 0;
+      constexpr s64 networkSize = GigaBytes( 1 );
+      constexpr s64 temporarySize = GigaBytes( 1 );
+      //constexpr s64 generalSize = 0;
 
       AllocatorPolicyFlags policy = AllocatorPolicyFlags::ThreadSafe | AllocatorPolicyFlags::AllowGrowth;
 
@@ -647,12 +715,12 @@ namespace bse
       //s64 end = total / s64( platform->info.virtualMemoryPageSize );
 
       char* pointer = nullptr;
-      assert( s64( platform->info.virtualMemoryAddressEnd - platform->info.virtualMemoryAddressBegin ) > networkSize + temporarySize + generalSize );
+      //assert( s64( platform->info.virtualMemoryAddressEnd - platform->info.virtualMemoryAddressBegin ) > networkSize + temporarySize + generalSize );
 
-      pointer = (char*) platform->allocate_virtual_memory( 0, networkSize );
+      pointer = (char*) platform->allocate_virtual_memory( networkSize );
       init_arena_for_virtual_memory_layout( layout.network, &layout, pointer, networkSize, policy );
 
-      pointer = (char*) platform->allocate_virtual_memory( 0, temporarySize );
+      pointer = (char*) platform->allocate_virtual_memory( temporarySize );
       init_arena_for_virtual_memory_layout( layout.temporary, &layout, pointer, temporarySize, policy );
 
       //pointer = (char*) platform->allocate_virtual_memory( 0, generalSize );
