@@ -1,23 +1,30 @@
-@echo off
-IF NOT DEFINED DevEnvDir call shell_win64.bat
-
-IF NOT DEFINED VULKAN_SDK (
-  echo ERROR - VULKAN_SDK environment variable not set, aborting
-  goto error_section
-)
+@echo off 
+IF NOT DEFINED BSE_CLANG_ROOT call shell_linux.bat
 
 IF NOT DEFINED BSE_CODE_PATH (
-  echo ERROR - Don't run build_win64.bat directly, run "build.bat win64" instead.
+  echo ERROR - Don't run build_linux.bat directly, run "build.bat linux" instead.
   goto error_section
 )
 
 setlocal EnableDelayedExpansion
 pushd "%BSE_OUT_PATH%"
 
-set compiler_options=/I "%BSE_CODE_PATH%\" /I%VULKAN_SDK%\Include /DBSE_PLATFORM_WINDOWS /GR- /EHa- /FC /MT /nologo /volatile:iso /W4 /wd4068 /wd4100 /wd4201 /wd4701 /wd4189 /wd4530
-IF NOT %BSE_APP_PATH%=="" set compiler_options=%compiler_options% /DBSE_BUILD_APP_PATH=%BSE_APP_PATH%
-set linker_options=/link /opt:ref /incremental:no "%VULKAN_SDK%\Lib\vulkan-1.lib"
-set app_exports=/EXPORT:core_initialize_internal /EXPORT:core_on_reload_internal /EXPORT:core_tick_internal
+
+
+set clang="%BSE_CLANG_ROOT:"=%\bin\clang++.exe"
+set sysroot=%BSE_CLANG_SYSROOT:"=%
+
+
+
+set compiler_options=-I "%BSE_CODE_PATH%\;%sysroot%\usr\include\" --sysroot="%sysroot%" -g -DBSE_PLATFORM_LINUX -std=c++20 -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wformat -Wall -Werror=format-security -fno-limit-debug-info -fPIC
+IF NOT %BSE_APP_PATH%=="" set compiler_options=%compiler_options% -DBSE_BUILD_APP_PATH=%BSE_APP_PATH%
+set linker_options=-lGLESv3 -lvulkan -static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--fatal-warnings -Wl,--gc-sections -Wl,--no-undefined -Qunused-arguments -llog -latomic -lm 
+
+
+rem QUICK HACK TO REDIRECT DEBUG TO DEVELOPMENT UNTIL A DEBUGGER RUNS ON A LINUX DEVICE
+IF NOT x%BSE_BUILD_CONFIG:debug=%==x%BSE_BUILD_CONFIG% set BSE_BUILD_CONFIG=%BSE_BUILD_CONFIG%-development
+
+goto skip_build_debug
 
 @REM ------------------------------------------------------------------------
 @REM -------- Debug Build ---------------------------------------------------
@@ -27,14 +34,8 @@ set app_exports=/EXPORT:core_initialize_internal /EXPORT:core_on_reload_internal
   echo --------------------------------------------------------------
   IF NOT EXIST debug mkdir debug
   pushd debug
-  del *.pdb > NUL 2> NUL
 
-  set compiler_options_debug=%compiler_options% /Z7 /Od /DBSE_BUILD_DEBUG
-  cl /LD %BSE_CODE_PATH%\core\bse_core.cpp %compiler_options_debug% /Fe:bse_core.dll /Fmbse_core.map %linker_options% %app_exports% /PDB:"%BSE_OUT_NAME%_%random%.pdb"
-  if %errorlevel% neq 0 goto error_section_compile
-  
-  cl     %BSE_CODE_PATH%\bse_main.cpp /Fe:"%BSE_OUT_NAME%_debug.exe" %compiler_options_debug% %linker_options% 
-  if %errorlevel% neq 0 goto error_section_compile
+  rem TODO DEBUG BUILD
 
   echo --------------------------------------------------------------
   popd
@@ -47,13 +48,13 @@ set app_exports=/EXPORT:core_initialize_internal /EXPORT:core_on_reload_internal
   echo --------------------------------------------------------------
   IF NOT EXIST development mkdir development
   pushd development
-  del *.pdb > NUL 2> NUL
 
-  set compiler_options_development=%compiler_options% /Od /DBSE_BUILD_DEVELOPMENT
-  cl /LD %BSE_CODE_PATH%\core\bse_core.cpp %compiler_options_development% /Fe:bse_core.dll %linker_options% %app_exports%
-  if %errorlevel% neq 0 goto error_section_compile
+  rem set compiler_options_development=%compiler_options% -DBSE_BUILD_DEVELOPMENT
+  set compiler_options_development=--sysroot="%sysroot%" -I"%sysroot%\usr\include\" -DBSE_BUILD_DEVELOPMENT
 
-  cl     %BSE_CODE_PATH%\bse_main.cpp /Fe:"%BSE_OUT_NAME%_development.exe" %compiler_options_development% %linker_options% 
+  %clang% %BSE_CODE_PATH%\bse_main.cpp --target=x86_64-linux-gnu %compiler_options_development% %linker_options%
+
+  rem %clang% %BSE_CODE_PATH%\bse_main.cpp --target=x86_64-linux-gnu %compiler_options_development% -o %BSE_OUT_NAME% %linker_options%
   if %errorlevel% neq 0 goto error_section_compile
 
   echo --------------------------------------------------------------
@@ -68,18 +69,16 @@ set app_exports=/EXPORT:core_initialize_internal /EXPORT:core_on_reload_internal
   IF NOT EXIST release mkdir release
   pushd release
 
-  set compiler_options_release=%compiler_options% /Ox
-  cl %BSE_CODE_PATH%\bse_main.cpp /Fe:"%BSE_OUT_NAME%.exe" %compiler_options_release% %linker_options% 
-  if %errorlevel% neq 0 goto error_section_compile
-  
-  del *.obj > NUL 2> NUL
+  rem TODO RELEASE BUILD
+
+
   echo --------------------------------------------------------------
   popd
 :skip_build_release
 
 
-popd
 
+popd
 goto end
 
 :error_section_compile
@@ -90,7 +89,7 @@ goto end
   popd rem %BSE_OUT_PATH%
   echo ==============================================================
   echo --------------------------------------------------------------
-  echo -- ERRORS BUILDING WIN64, PLEASE READ THE LOGS ABOVE --------- 
+  echo -- ERRORS BUILDING LINUX, PLEASE READ THE LOGS ABOVE --------- 
   echo --------------------------------------------------------------
 
 :end

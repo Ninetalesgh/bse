@@ -2,9 +2,6 @@
 #include "bse_android_platform_callbacks.h"
 
 
-//#include <GLES3/gl32.h>
-//#include <GLES2/gl3ext.h>
-
 #include <string>
 
 #include "core/bse_core.cpp"

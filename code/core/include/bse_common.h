@@ -7,8 +7,8 @@
 #define BSE_RENDERER_VULKAN
 //#define BSE_RENDERER_OPENGL
 
-#if !defined (BSE_PLATFORM_WINDOWS) && !defined (BSE_PLATFORM_ANDROID)
-#error "Please define either BSE_PLATFORM_WINDOWS or BSE_PLATFORM_ANDROID"
+#if !defined (BSE_PLATFORM_WINDOWS) && !defined (BSE_PLATFORM_ANDROID) && !defined (BSE_PLATFORM_LINUX)
+#error "Please define either BSE_PLATFORM_WINDOWS, BSE_PLATFORM_LINUX or BSE_PLATFORM_ANDROID"
 #endif
 
 #if defined(BSE_BUILD_DEBUG) || defined(BSE_BUILD_DEVELOPMENT)
@@ -48,7 +48,7 @@
 #endif
 
 #if defined(_M_CEE)
-#error "no please. no. not this again."
+#error "No please. no. Not this again. Don't use CLI."
 #endif
 
 #if defined(BSE_ARCHITECTURE_X86)
@@ -187,7 +187,7 @@ constexpr INLINE s64 GigaBytes( s64 gigaBytes ) { return MegaBytes( gigaBytes ) 
 #if defined(BSE_PLATFORM_WINDOWS)
 constexpr INLINE bool is_negative( float x ) { return (*(u32*) &x) & 0x80000000; }
 constexpr INLINE bool sign_match( float a, float b ) { return ((*(s32*) &a) ^ (*(s32*) &b)) >= 0; }
-#elif defined(BSE_PLATFORM_ANDROID)
+#elif defined(BSE_PLATFORM_ANDROID) || defined(BSE_PLATFORM_LINUX)
 constexpr INLINE bool is_negative( float x ) { return std::signbit( x ); }
 constexpr INLINE bool sign_match( float a, float b ) { return std::signbit( a ) == std::signbit( b ); }
 #endif
