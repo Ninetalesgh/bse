@@ -10,7 +10,9 @@ namespace bse
     ////////// Allocators ////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void* allocate_temporary( s64 size ) { return allocate( platform->allocators.temporary[platform->thisFrame.frameIndex % array_count( platform->allocators.temporary )], size ); }
+    void* allocate_frame( s64 size ) { return allocate( platform->allocators.frameArena[platform->thisFrame.frameIndex % array_count( platform->allocators.frameArena )], size ); }
+    void* allocate_temporary( s64 size ) { return allocate( &platform->allocators.virtualMemory.temporary, size ); }
+    void clear_temporary() { clear_arena( &bse::platform->allocators.virtualMemory.temporary ); }
 
     void* allocate_main_thread( s64 size ) { return allocate( platform->allocators.mainThread, size ); }
     void* reallocate_main_thread( void* ptr, s64 oldSize, s64 newSize ) { return reallocate( platform->allocators.mainThread, ptr, oldSize, newSize ); }
@@ -298,7 +300,7 @@ namespace bse
       Arena* result = (Arena*) allocate( parent, allocationSize );
       if ( result )
       {
-        result->allocatorLock = atomic32 {};
+        result->allocatorLock.store( 0, std::memory_order_relaxed );
         result->type      = AllocatorType::Arena;
         result->policy    = policy;
         result->parent    = parent;
@@ -320,7 +322,7 @@ namespace bse
       Arena* result = (Arena*) existingBuffer;
       if ( result )
       {
-        result->allocatorLock = atomic32 {};
+        result->allocatorLock.store( 0, std::memory_order_relaxed );
         result->type      = AllocatorType::Arena;
         result->policy    = policy;
         result->parent    = parent;
@@ -354,7 +356,7 @@ namespace bse
         bufferSize += roundUp;
       }
 
-      arena.allocatorLock = atomic32 {};
+      arena.allocatorLock.store( 0, std::memory_order_relaxed );
       arena.type      = AllocatorType::Arena;
       arena.policy    = policy;
       arena.parent    = parent;
@@ -397,36 +399,6 @@ namespace bse
           }
         }
 
-        // if ( pool->granularity == 80 )
-        // {
-        //   s32 chain = 0;
-        //   auto test = pool->next;
-        //   s64 slotsLeft = 0;
-        //   if ( test )
-        //   {
-        //     auto poop = test;
-        //     while ( test = test->next ) { ++chain; poop = test; if ( test == pool->next ) break; }
-        //     slotsLeft = (s64( pool->size ) - (s64( poop ) - s64( pool->begin ))) / pool->granularity;
-        //     slotsLeft += chain;
-        //   }
-
-        //   int poolId = extraPools;
-        //   auto bla = pool;
-        //   while ( bla = bla->nextPool ) { --poolId; }
-
-        //   log_info( "alloc: ", s64( slot ), ", chain: ", chain, ", left: ", slotsLeft, ", pid: ", poolId );
-        //   for ( auto h : huh )
-        //   {
-        //     if ( h == s64( slot ) )
-        //     {
-        //       BREAK;
-        //       break;
-        //     }
-        //   }
-
-        //   huh.push_back( s64( slot ) );
-        // }
-
         if ( locked ) thread::unlock_atomic( pool->allocatorLock );
         return slot;
       }
@@ -450,36 +422,6 @@ namespace bse
         MonotonicPool::Slot* slot = (MonotonicPool::Slot*) ptr;
         slot->next = pool->next;
         pool->next = slot;
-
-        // if ( pool->granularity == 80 )
-        // {
-        //   s64 end = huh.size();
-        //   for ( s32 i= 0; i < end; ++i )
-        //   {
-        //     if ( huh[i] == s64( ptr ) )
-        //     {
-        //       huh.erase( huh.begin() + i );
-        //       break;
-        //     }
-        //   }
-        //   s32 chain = 0;
-        //   auto test = pool->next;
-        //   auto poop = test;
-        //   while ( test = test->next ) { ++chain; poop = test; if ( test == pool->next ) break; }
-
-        //   int poolId = extraPools;
-        //   auto bla = pool;
-        //   while ( bla = bla->nextPool ) { --poolId; }
-        //   s64 slotsLeft = 0;
-
-        //   if ( poop )
-        //   {
-        //     slotsLeft = (s64( pool->size ) - (s64( poop ) - s64( pool->begin ))) / pool->granularity;
-        //     slotsLeft += chain;
-        //   }
-
-        //   log_info( "free : ", s64( ptr ), ", chain: ", chain, ", left: ", slotsLeft, ", pid: ", poolId );
-        // }
       }
       else if ( pool->nextPool )
       {
@@ -517,7 +459,7 @@ namespace bse
       MonotonicPool* result = (MonotonicPool*) allocate( parent, allocationSize );
       if ( result )
       {
-        result->allocatorLock = atomic32 {};
+        result->allocatorLock.store( 0, std::memory_order_relaxed );
         result->type        = AllocatorType::MonotonicPool;
         result->policy      = policy;
         result->parent      = parent;
@@ -624,7 +566,7 @@ namespace bse
 
       if ( result )
       {
-        result->allocatorLock       = atomic32 {};
+        result->allocatorLock       = 0;
         result->type                = AllocatorType::Multipool;
         result->policy              = policy;
         result->parent              = parent;
@@ -643,7 +585,7 @@ namespace bse
       {
         result->pools[0] = (MonotonicPool*) (((char*) result) + allocationSize);
         MonotonicPool*& pool = result->pools[0];
-        pool->allocatorLock = atomic32 {};
+        pool->allocatorLock.store( 0, std::memory_order_relaxed );
         pool->type        = AllocatorType::MonotonicPool;
         pool->policy      = policy;
         pool->parent      = parent;
@@ -687,7 +629,7 @@ namespace bse
 
     void init_arena_for_virtual_memory_layout( Arena& arena, Allocator* parent, void* address, s64 size, AllocatorPolicyFlags const& policy )
     {
-      arena.allocatorLock = atomic32 {};
+      arena.allocatorLock.store( 0, std::memory_order_relaxed );
       arena.type      = AllocatorType::Arena;
       arena.policy    = policy;
       arena.parent    = parent;
@@ -699,7 +641,7 @@ namespace bse
 
     void init_virtual_memory_layout( VirtualMemoryLayout& layout )
     {
-      layout.allocatorLock = atomic32 {};
+      layout.allocatorLock.store( 0, std::memory_order_relaxed );
       layout.type        = AllocatorType::VirtualMemory;
       layout.policy      = AllocatorPolicyFlags::None;
       layout.parent      = nullptr;
@@ -765,5 +707,146 @@ namespace bse
       return !is_temporary( ptr ) && !is_network( ptr );
     }
   };
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////// Profiler WIP //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  struct MonotonicPoolProfile
+  {
+    s64 poolChainLength;
+    s64 freeSlotCount;
+    s64 granularity;
+  };
+
+  struct MemoryProfile
+  {
+    MonotonicPoolProfile monotonicPoolProfile[512];
+  };
+
+  void profile_monotonic_pool( bse::memory::MonotonicPool* pool, MonotonicPoolProfile* out_Profile )
+  {
+    ++out_Profile->poolChainLength;
+
+    s64 freeSlots = 0;
+    memory::MonotonicPool::Slot* slot = pool->next;
+    if ( slot )
+    {
+      while ( slot->next )
+      {
+        ++freeSlots;
+        slot = slot->next;
+      }
+
+      s32 chain = 0;
+      auto test = pool->next;
+      s64 slotsLeft = 0;
+      if ( test )
+      {
+        auto poop = test;
+        test = test->next;
+        while ( test ) { ++chain; poop = test; if ( test == pool->next ) break; test = test->next; }
+        slotsLeft = (s64( pool->size ) - (s64( poop ) - s64( pool->begin ))) / pool->granularity;
+        slotsLeft += chain;
+      }
+
+      freeSlots = slotsLeft;
+    }
+    out_Profile->freeSlotCount += freeSlots;
+
+    if ( pool->nextPool )
+    {
+      profile_monotonic_pool( pool->nextPool, out_Profile );
+    }
+  }
+
+  MemoryProfile profile_multipool( bse::memory::Multipool* multipool )
+  {
+    MemoryProfile result = {};
+    s64 poolCount = multipool->poolSizeMax / multipool->poolSizeGranularity;
+
+    for ( s32 i = 0; i < poolCount; ++i )
+    {
+      bse::memory::MonotonicPool* pool = multipool->pools[i];
+      if ( pool )
+      {
+        result.monotonicPoolProfile[i].granularity = (i + 1) * multipool->poolSizeGranularity;
+        profile_monotonic_pool( pool, &result.monotonicPoolProfile[i] );
+      }
+    }
+
+    return result;
+  }
+
+  MemoryProfile diff_memory_profiles( MemoryProfile* oldProfile, MemoryProfile* newProfile )
+  {
+    MemoryProfile result;
+    for ( int i = 0; i < array_count( oldProfile->monotonicPoolProfile ); ++i )
+    {
+      result.monotonicPoolProfile[i].poolChainLength = newProfile->monotonicPoolProfile[i].poolChainLength - oldProfile->monotonicPoolProfile[i].poolChainLength;
+      result.monotonicPoolProfile[i].freeSlotCount = newProfile->monotonicPoolProfile[i].freeSlotCount - oldProfile->monotonicPoolProfile[i].freeSlotCount;
+      result.monotonicPoolProfile[i].granularity = newProfile->monotonicPoolProfile[i].granularity;
+    }
+    return result;
+  }
 };
 
+//hacked debug code in case I need it again
+ // if ( pool->granularity == 80 )
+        // {
+        //   s32 chain = 0;
+        //   auto test = pool->next;
+        //   s64 slotsLeft = 0;
+        //   if ( test )
+        //   {
+        //     auto poop = test;
+        //     while ( test = test->next ) { ++chain; poop = test; if ( test == pool->next ) break; }
+        //     slotsLeft = (s64( pool->size ) - (s64( poop ) - s64( pool->begin ))) / pool->granularity;
+        //     slotsLeft += chain;
+        //   }
+
+        //   int poolId = extraPools;
+        //   auto bla = pool;
+        //   while ( bla = bla->nextPool ) { --poolId; }
+
+        //   log_info( "alloc: ", s64( slot ), ", chain: ", chain, ", left: ", slotsLeft, ", pid: ", poolId );
+        //   for ( auto h : huh )
+        //   {
+        //     if ( h == s64( slot ) )
+        //     {
+        //       BREAK;
+        //       break;
+        //     }
+        //   }
+
+        //   huh.push_back( s64( slot ) );
+        // }
+        // if ( pool->granularity == 80 )
+        // {
+        //   s64 end = huh.size();
+        //   for ( s32 i= 0; i < end; ++i )
+        //   {
+        //     if ( huh[i] == s64( ptr ) )
+        //     {
+        //       huh.erase( huh.begin() + i );
+        //       break;
+        //     }
+        //   }
+        //   s32 chain = 0;
+        //   auto test = pool->next;
+        //   auto poop = test;
+        //   while ( test = test->next ) { ++chain; poop = test; if ( test == pool->next ) break; }
+
+        //   int poolId = extraPools;
+        //   auto bla = pool;
+        //   while ( bla = bla->nextPool ) { --poolId; }
+        //   s64 slotsLeft = 0;
+
+        //   if ( poop )
+        //   {
+        //     slotsLeft = (s64( pool->size ) - (s64( poop ) - s64( pool->begin ))) / pool->granularity;
+        //     slotsLeft += chain;
+        //   }
+
+        //   log_info( "free : ", s64( ptr ), ", chain: ", chain, ", left: ", slotsLeft, ", pid: ", poolId );
+        // }

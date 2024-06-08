@@ -3,6 +3,8 @@
 #pragma once
 
 #include "bse_common.h"
+#include <atomic>
+#include <chrono>
 
 #define LOCK_SCOPE(lockAtomic) thread::LockingObject prevent_locks_in_locks_tmp_object { &lockAtomic }
 
@@ -15,20 +17,7 @@ INLINE void* interlocked_compare_exchange_ptr( void* volatile* value, void* new_
 
 namespace bse
 {
-  struct alignas(4) atomic32
-  {
-    atomic32() : value( 0 ) {}
-    atomic32( s32 value ) : value( value ) {}
-    INLINE operator s32() const { return value; }
-    INLINE s32 increment() { return interlocked_increment( &value ); }
-    INLINE s32 increment_unsafe() { value = value + 1; return value; }
-    INLINE s32 decrement() { return interlocked_decrement( &value ); }
-    INLINE s32 decrement_unsafe() { value = value - 1; return value; }
-    INLINE s32 compare_exchange( s32 new_value, s32 comparand ) { return interlocked_compare_exchange( &value, new_value, comparand ); }
-    INLINE void set( s32 val ) { value = val; }
-  private:
-    s32 volatile value;
-  };
+  template<class T> using atomic = std::atomic<T>;
 
   namespace thread
   {
@@ -41,20 +30,20 @@ namespace bse
       char const* name;
 
       thread::ID id;
-      atomic32 requestPause;
-      atomic32 isPaused;
+      atomic<s32> requestPause;
+      atomic<s32> isPaused;
     };
 
     struct LockingObject
     {
-      LockingObject( atomic32* lock );
+      LockingObject( atomic<s32>* lock );
       ~LockingObject();
     private:
-      atomic32* lock;
+      atomic<s32>* lock;
     };
 
-    void lock( atomic32& lock );
-    void unlock( atomic32& lock );
+    void lock( atomic<s32>& lock );
+    void unlock( atomic<s32>& lock );
 
     INLINE void sleep( s32 milliseconds );
 
@@ -81,20 +70,29 @@ namespace bse
 {
   namespace thread
   {
-    void lock_atomic( atomic32& lock ) { while ( lock.compare_exchange( 1, 0 ) ) { thread::sleep( 0 ); } }
-    void unlock_atomic( atomic32& lock ) { assert( lock ); lock.compare_exchange( 0, 1 ); }
+    void lock_atomic( atomic<s32>& lock )
+    {
+      s32 expected = 1;
+      while ( lock.compare_exchange_weak( expected, 0 ) )
+      {
+        thread::sleep( 0 );
+      }
+    }
+    void unlock_atomic( atomic<s32>& lock ) { assert( lock ); s32 expected = 0; lock.compare_exchange_strong( expected, 1 ); }
 
-    INLINE LockingObject::LockingObject( atomic32* lock ) : lock( lock ) { lock_atomic( *lock ); }
+    INLINE LockingObject::LockingObject( atomic<s32>* lock ) : lock( lock ) { lock_atomic( *lock ); }
     INLINE LockingObject::~LockingObject() { unlock_atomic( *lock ); }
 
     INLINE void request_pause( thread::Context* threadContext )
     {
-      threadContext->requestPause.compare_exchange( 1, 0 );
+      s32 expected = 1;
+      threadContext->requestPause.compare_exchange_strong( expected, 0 );
     }
 
     INLINE void request_unpause( thread::Context* threadContext )
     {
-      threadContext->requestPause.compare_exchange( 0, 1 );
+      s32 expected = 0;
+      threadContext->requestPause.compare_exchange_strong( expected, 1 );
     }
 
     INLINE void wait_for_thread_to_pause( thread::Context* threadContext )
@@ -109,13 +107,15 @@ namespace bse
     {
       if ( threadContext->requestPause )
       {
-        threadContext->isPaused.compare_exchange( 1, 0 );
+        s32 expected = 1;
+        threadContext->isPaused.compare_exchange_strong( expected, 0 );
 
         while ( threadContext->requestPause )
         {
           thread::sleep( millisecondsSleepPerPoll );
         }
-        threadContext->isPaused.compare_exchange( 0, 1 );
+        expected = 0;
+        threadContext->isPaused.compare_exchange_strong( expected, 1 );
       }
     }
 
@@ -146,15 +146,14 @@ namespace bse
   {
     void sleep( s32 milliseconds )
     {
-      xtime timer {};
-      s64 nanosecondsTarget = s64( _Xtime_get_ticks() ) * 100LL + s64( milliseconds ) * 1000000LL;
-      timer.sec  = nanosecondsTarget / 1000000000LL;
-      timer.nsec = nanosecondsTarget % 1000000000LL;
-      _Thrd_sleep( &timer );
+      BREAK;
+      auto duration = std::chrono::milliseconds( milliseconds );
+      std::this_thread::sleep_for( duration );
     }
 
     bool is_current_thread( thread::Context const* threadContext )
     {
+      //thread::id
       return threadContext->id == _Thrd_id();
     }
 

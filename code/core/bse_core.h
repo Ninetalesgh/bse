@@ -114,7 +114,7 @@ namespace bse
     struct Allocators
     {
       memory::VirtualMemoryLayout virtualMemory;
-      memory::Arena* temporary[60];
+      memory::Arena* frameArena[60];
       memory::Multipool* mainThread;
       memory::Multipool* threadSafe;
     } allocators;

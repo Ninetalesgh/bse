@@ -5,10 +5,14 @@ rem Make sure these environment variables result in something sensible
 rem if you want to compile for android
 rem -------------------------------------------------------------------------------------
 
+rem -------------------------------------------------------------------------------------
+rem This expects JAVA_HOME to exist as environment variable
+rem -------------------------------------------------------------------------------------
+
 rem this directory should contain:
 rem javac.exe
 rem keytool.exe
-set BSE_JAVA_BIN_PATH="C:\Program Files\Android\jdk\jdk-8.0.302.8-hotspot\jdk8u302-b08\bin"
+set BSE_JAVA_BIN_PATH="%JAVA_HOME:"=%\bin"
 
 rem -------------------------------------------------------------------------------------
 rem These expect ANDROID_SDK_ROOT to exist as environment variable

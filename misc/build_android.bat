@@ -1,5 +1,11 @@
 @echo off 
 IF NOT DEFINED BSE_JAVA_BIN_PATH call shell_android.bat
+
+IF NOT DEFINED ANDROID_SDK_ROOT (
+  echo ERROR - ANDROID_SDK_ROOT environment variable not set, aborting
+  goto error_section
+)
+
 setlocal EnableDelayedExpansion
 
 set package_path=com\bse\core

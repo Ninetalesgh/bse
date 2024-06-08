@@ -23,7 +23,7 @@ namespace bse
       COMPLETED   = 0x4,
     };
 
-    struct TaskQueue
+    struct alignas(8) TaskQueue
     {
       struct Entry
       {
@@ -32,9 +32,9 @@ namespace bse
       } *tasks;
 
       void* semaphore;
-      atomic32 pushIndex;
-      atomic32 popIndex;
-      atomic32 pushLockObject;
+      s32 volatile pushIndex;
+      s32 volatile popIndex;
+      s32 volatile pushLockObject;
     };
 
     struct Pool

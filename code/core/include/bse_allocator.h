@@ -24,7 +24,11 @@ namespace bse
     // !!! WARNING !!! 
     //anything allocated will only live for a couple of frames!
     //TODO this is now only main thread, I think I'll fetch these by threadID ? 
+    [[nodiscard]] void* allocate_frame( s64 size );
+
+    //allocate temporary memory that should be cleared entirely every now and then, freeing individual allocations not necessary
     [[nodiscard]] void* allocate_temporary( s64 size );
+    void clear_temporary();
 
     [[nodiscard]] void* allocate_main_thread( s64 size );
     [[nodiscard]] void* reallocate_main_thread( void* ptr, s64 oldSize, s64 newSize );
@@ -194,7 +198,7 @@ namespace bse
     {
       constexpr static u32 ALIGNMENT = 64;
       Allocator* parent;
-      atomic32 allocatorLock;
+      atomic<s32> allocatorLock;
       AllocatorType type;
       AllocatorPolicyFlags policy;
     };

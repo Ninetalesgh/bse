@@ -47,86 +47,11 @@ interlocked_decrement
 //__ARM_ARCH
 //__ARM_32_BIT_STATE ??
 
+
+#define BSE_VK_USE_CUSTOM_ALLOCATOR
+
 namespace bse
 {
-  struct MonotonicPoolProfile
-  {
-    s64 poolChainLength;
-    s64 freeSlotCount;
-    s64 granularity;
-  };
-
-  struct MemoryProfile
-  {
-    MonotonicPoolProfile monotonicPoolProfile[512];
-  };
-
-  void profile_monotonic_pool( bse::memory::MonotonicPool* pool, MonotonicPoolProfile* out_Profile )
-  {
-    ++out_Profile->poolChainLength;
-
-    s64 freeSlots = 0;
-    memory::MonotonicPool::Slot* slot = pool->next;
-    if ( slot )
-    {
-      while ( slot->next )
-      {
-        ++freeSlots;
-        slot = slot->next;
-      }
-
-      s32 chain = 0;
-      auto test = pool->next;
-      s64 slotsLeft = 0;
-      if ( test )
-      {
-        auto poop = test;
-        test = test->next;
-        while ( test ) { ++chain; poop = test; if ( test == pool->next ) break; test = test->next; }
-        slotsLeft = (s64( pool->size ) - (s64( poop ) - s64( pool->begin ))) / pool->granularity;
-        slotsLeft += chain;
-      }
-
-      freeSlots = slotsLeft;
-    }
-    out_Profile->freeSlotCount += freeSlots;
-
-    if ( pool->nextPool )
-    {
-      profile_monotonic_pool( pool->nextPool, out_Profile );
-    }
-  }
-
-  MemoryProfile profile_multipool( bse::memory::Multipool* multipool )
-  {
-    MemoryProfile result = {};
-    s64 poolCount = multipool->poolSizeMax / multipool->poolSizeGranularity;
-
-    for ( s32 i = 0; i < poolCount; ++i )
-    {
-      bse::memory::MonotonicPool* pool = multipool->pools[i];
-      if ( pool )
-      {
-        result.monotonicPoolProfile[i].granularity = (i + 1) * multipool->poolSizeGranularity;
-        profile_monotonic_pool( pool, &result.monotonicPoolProfile[i] );
-      }
-    }
-
-    return result;
-  }
-
-  MemoryProfile diff_memory_profiles( MemoryProfile* oldProfile, MemoryProfile* newProfile )
-  {
-    MemoryProfile result;
-    for ( int i = 0; i < array_count( oldProfile->monotonicPoolProfile ); ++i )
-    {
-      result.monotonicPoolProfile[i].poolChainLength = newProfile->monotonicPoolProfile[i].poolChainLength - oldProfile->monotonicPoolProfile[i].poolChainLength;
-      result.monotonicPoolProfile[i].freeSlotCount = newProfile->monotonicPoolProfile[i].freeSlotCount - oldProfile->monotonicPoolProfile[i].freeSlotCount;
-      result.monotonicPoolProfile[i].granularity = newProfile->monotonicPoolProfile[i].granularity;
-    }
-    return result;
-  }
-
   struct QueueInfo
   {
     QueueInfo()
@@ -147,68 +72,75 @@ namespace bse
     VkSurfaceCapabilitiesKHR surfaceCapabilities;
   };
 
+  struct VulkanDevice
+  {
+    VkPhysicalDevice physicalDevice;
+    VkDevice logicalDevice;
+    QueueInfo queueInfo;
+    VkPhysicalDeviceProperties properties;
+    VkPhysicalDeviceFeatures features;
+    VkPhysicalDeviceMemoryProperties memoryProperties;
+    SwapchainSupportInfo swapchainSupportInfo;
+
+    VkQueue graphicsQueue;
+    VkQueue presentQueue;
+    VkQueue transferQueue;
+  };
+
+  struct VulkanPhysicalDeviceRequirements
+  {
+    QueueInfo queueInfo;
+    VkPhysicalDeviceType deviceType;
+    bse::Vector<bse::String> deviceExtensionNames;
+  };
+
   struct VulkanAllocationUserData
   {
     bse::Vector<void*> allocations;
     bse::Vector<s64> sizes;
 
-    void* allocate( s64 size, s64 alignment )
-    {
-      void* result = bse::memory::allocate_thread_safe( size );
-      assert( (s64( result ) % alignment) == 0 );
-      allocations.push_back( result );
-      sizes.push_back( size );
-      return result;
-    }
-
-    void free( void* allocation )
-    {
-      s64 count = allocations.size();
-      for ( int i = s32( count - 1 ); i >= 0; --i )
-      {
-        if ( allocation == allocations[i] )
-        {
-          swap_to_end_and_pop( allocations, i );
-          s64 size = swap_to_end_and_pop( sizes, i );
-          bse::memory::free_thread_safe( allocation, size );
-          break;
-        }
-      }
-    }
-
-    void* reallocate( void* allocation, s64 newSize, s64 alignment )
-    {
-      s64 count = allocations.size();
-      for ( int i = s32( count - 1 ); i >= 0; --i )
-      {
-        if ( allocation == allocations[i] )
-        {
-          void* result = bse::memory::reallocate_thread_safe( allocations[i], sizes[i], newSize );
-          assert( (s64( result ) % alignment) == 0 );
-          allocations[i] = result;
-          sizes[i] = newSize;
-          return result;
-        }
-      }
-
-      BREAK;
-      return nullptr;
-    }
+    void* allocate( s64 size, s64 alignment );
+    void free( void* allocation );
+    void* reallocate( void* allocation, s64 newSize, s64 alignment );
   };
 
+  struct VulkanContext
+  {
+    VkInstance instance;
+    VkAllocationCallbacks allocationCallbacks;
+    #if defined(BSE_VK_USE_CUSTOM_ALLOCATOR)
+    VulkanAllocationUserData allocationUserData;
+    #endif
+    VulkanDevice device;
+  };
+
+  QueueInfo get_queue_info( VkPhysicalDevice physicalDevice, VkSurfaceKHR surface );
 
   void* VKAPI_PTR BSE_vkAllocationFunction( void* pUserData, size_t size, size_t alignment, VkSystemAllocationScope allocationScope )
   {
-    //return malloc( size );
+    #if defined(BSE_VK_USE_CUSTOM_ALLOCATOR)
+    if ( allocationScope == VK_SYSTEM_ALLOCATION_SCOPE_COMMAND )
+    {
+      return bse::memory::allocate_temporary( size );
+    }
     VulkanAllocationUserData* allocationUserData = (VulkanAllocationUserData*) pUserData;
     return allocationUserData->allocate( size, alignment );
+    #else
+    return malloc( size );
+    #endif
   }
 
   void VKAPI_PTR BSE_vkFreeFunction( void* pUserData, void* pMemory )
   {
-    //free( pMemory );
-    VulkanAllocationUserData* allocationUserData = (VulkanAllocationUserData*) pUserData;
-    allocationUserData->free( pMemory );
+    #if defined(BSE_VK_USE_CUSTOM_ALLOCATOR)
+    if ( !bse::memory::is_temporary( pMemory ) )
+    {
+      VulkanAllocationUserData* allocationUserData = (VulkanAllocationUserData*) pUserData;
+      allocationUserData->free( pMemory );
+    }
+    #else
+    free( pMemory );
+    #endif
   }
 
   void VKAPI_PTR BSE_vkInternalAllocationNotification( void* pUserData, size_t size, VkInternalAllocationType allocationType, VkSystemAllocationScope allocationScope )
@@ -223,32 +155,54 @@ namespace bse
 
   void* VKAPI_PTR BSE_vkReallocationFunction( void* pUserData, void* pOriginal, size_t size, size_t alignment, VkSystemAllocationScope allocationScope )
   {
+    #if defined(BSE_VK_USE_CUSTOM_ALLOCATOR)
     VulkanAllocationUserData* allocationUserData = (VulkanAllocationUserData*) pUserData;
     return allocationUserData->reallocate( pOriginal, size, alignment );
+    #else
+    return realloc( pOriginal, size );
+    #endif
   }
 
-  struct VulkanContext
+  void* VulkanAllocationUserData::allocate( s64 size, s64 alignment )
   {
-    VkInstance instance;
-    VkAllocationCallbacks allocationCallbacks;
-    VulkanAllocationUserData allocationUserData;
-    VkPhysicalDevice physicalDevice;
-    VkDevice logicalDevice;
-    QueueInfo queueInfo;
-    VkPhysicalDeviceProperties deviceProperties;
-    VkPhysicalDeviceFeatures deviceFeatures;
-    VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
-    SwapchainSupportInfo swapchainSupportInfo;
-  };
-
-  struct VulkanPhysicalDeviceRequirements
+    void* result = bse::memory::allocate_thread_safe( size );
+    assert( (s64( result ) % alignment) == 0 );
+    allocations.push_back( result );
+    sizes.push_back( size );
+    return result;
+  }
+  void VulkanAllocationUserData::free( void* allocation )
   {
-    QueueInfo queueInfo;
-    VkPhysicalDeviceType deviceType;
-    bse::Vector<bse::String> deviceExtensionNames;
-  };
-  QueueInfo get_queue_info( VkPhysicalDevice physicalDevice, VkSurfaceKHR surface );
+    s64 count = allocations.size();
+    for ( int i = s32( count - 1 ); i >= 0; --i )
+    {
+      if ( allocation == allocations[i] )
+      {
+        swap_to_end_and_pop( allocations, i );
+        s64 size = swap_to_end_and_pop( sizes, i );
+        bse::memory::free_thread_safe( allocation, size );
+        break;
+      }
+    }
+  }
+  void* VulkanAllocationUserData::reallocate( void* allocation, s64 newSize, s64 alignment )
+  {
+    s64 count = allocations.size();
+    for ( int i = s32( count - 1 ); i >= 0; --i )
+    {
+      if ( allocation == allocations[i] )
+      {
+        void* result = bse::memory::reallocate_thread_safe( allocations[i], sizes[i], newSize );
+        assert( (s64( result ) % alignment) == 0 );
+        allocations[i] = result;
+        sizes[i] = newSize;
+        return result;
+      }
+    }
 
+    BREAK;
+    return nullptr;
+  }
 
   template<> s32 string_format_internal<VkPresentModeKHR>( char* destination, s32 capacity, VkPresentModeKHR value )
   {
@@ -352,8 +306,6 @@ namespace bse
 
     return true;
   }
-
-
 
   VkResult create_debug_utils_messenger_ext( VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger ) {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr( instance, "vkCreateDebugUtilsMessengerEXT" );
@@ -490,17 +442,17 @@ namespace bse
     if ( result )
     {
       //set context members
-      context->physicalDevice = result;
-      context->queueInfo = get_queue_info( result, surface );
-      context->deviceProperties = VkPhysicalDeviceProperties {};
-      context->deviceFeatures = VkPhysicalDeviceFeatures {};
-      context->deviceMemoryProperties = VkPhysicalDeviceMemoryProperties {};
-      vkGetPhysicalDeviceProperties( result, &context->deviceProperties );
-      vkGetPhysicalDeviceFeatures( result, &context->deviceFeatures );
-      vkGetPhysicalDeviceMemoryProperties( result, &context->deviceMemoryProperties );
+      context->device.physicalDevice = result;
+      context->device.queueInfo = get_queue_info( result, surface );
+      context->device.properties = VkPhysicalDeviceProperties {};
+      context->device.features = VkPhysicalDeviceFeatures {};
+      context->device.memoryProperties = VkPhysicalDeviceMemoryProperties {};
+      vkGetPhysicalDeviceProperties( result, &context->device.properties );
+      vkGetPhysicalDeviceFeatures( result, &context->device.features );
+      vkGetPhysicalDeviceMemoryProperties( result, &context->device.memoryProperties );
 
-      VkPhysicalDeviceProperties& properties = context->deviceProperties;
-      VkPhysicalDeviceMemoryProperties& memoryProperties = context->deviceMemoryProperties;
+      VkPhysicalDeviceProperties& properties = context->device.properties;
+      VkPhysicalDeviceMemoryProperties& memoryProperties = context->device.memoryProperties;
       log_info( "Selected GPU: \"", properties.deviceName, "\", Type: ", get_physical_device_type_str( properties ), ", Driver version: ", VK_VERSION_MAJOR( properties.driverVersion ), ".", VK_VERSION_MINOR( properties.driverVersion ), ".", VK_VERSION_PATCH( properties.driverVersion ), ", API version: ", VK_VERSION_MAJOR( properties.apiVersion ), ".", VK_VERSION_MINOR( properties.apiVersion ), ".", VK_VERSION_PATCH( properties.apiVersion ) );
 
       for ( u32 j = 0; j < memoryProperties.memoryHeapCount; ++j )
@@ -602,22 +554,22 @@ namespace bse
 
   bool create_logical_device( VulkanContext* context )
   {
-    if ( !context->physicalDevice )
+    if ( !context->device.physicalDevice )
     {
       log_error( "VulkanContext must hold valid VkPhysicalDevice, please call fetch_physical_device() before this." );
       return false;
     }
 
-    bool presentSharesGraphicsQueue = context->queueInfo.graphicsFamilyIndex == context->queueInfo.presentFamilyIndex;
-    bool transferSharesGraphicsQueue = context->queueInfo.graphicsFamilyIndex == context->queueInfo.transferFamilyIndex;
+    bool presentSharesGraphicsQueue = context->device.queueInfo.graphicsFamilyIndex == context->device.queueInfo.presentFamilyIndex;
+    bool transferSharesGraphicsQueue = context->device.queueInfo.graphicsFamilyIndex == context->device.queueInfo.transferFamilyIndex;
     bse::Vector<u32> indices;
     indices.reserve( 3 );
-    indices.push_back( context->queueInfo.graphicsFamilyIndex );
+    indices.push_back( context->device.queueInfo.graphicsFamilyIndex );
 
     if ( !presentSharesGraphicsQueue )
-      indices.push_back( context->queueInfo.presentFamilyIndex );
+      indices.push_back( context->device.queueInfo.presentFamilyIndex );
     if ( !transferSharesGraphicsQueue )
-      indices.push_back( context->queueInfo.transferFamilyIndex );
+      indices.push_back( context->device.queueInfo.transferFamilyIndex );
 
     bse::Vector<VkDeviceQueueCreateInfo> queueCreateInfos { indices.size() };
 
@@ -628,7 +580,7 @@ namespace bse
       queueCreateInfos[i].pNext = 0;
       queueCreateInfos[i].flags = 0;
       queueCreateInfos[i].queueFamilyIndex = indices[i];
-      queueCreateInfos[i].queueCount = (indices[i] == context->queueInfo.graphicsFamilyIndex) ? 2 : 1;
+      queueCreateInfos[i].queueCount = (indices[i] == context->device.queueInfo.graphicsFamilyIndex) ? 2 : 1;
       queueCreateInfos[i].pQueuePriorities = queuePriorities;
     }
 
@@ -647,10 +599,10 @@ namespace bse
     deviceCreateInfo.ppEnabledExtensionNames = extensions;
     deviceCreateInfo.pEnabledFeatures = &requestedFeatures;
 
-    context->logicalDevice = 0;
-    BSE_VK_CHECK( vkCreateDevice( context->physicalDevice, &deviceCreateInfo, &context->allocationCallbacks, &context->logicalDevice ) );
+    context->device.logicalDevice = 0;
+    BSE_VK_CHECK( vkCreateDevice( context->device.physicalDevice, &deviceCreateInfo, &context->allocationCallbacks, &context->device.logicalDevice ) );
 
-    return context->logicalDevice != 0;
+    return context->device.logicalDevice != 0;
   }
 
   void query_swapchain_support( VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, SwapchainSupportInfo* out_swapchainSupportInfo )
@@ -686,22 +638,29 @@ namespace bse
 
   void destroy_device( VulkanContext* context )
   {
-    if ( context->logicalDevice )
+    context->device.graphicsQueue = 0;
+    context->device.presentQueue = 0;
+    context->device.transferQueue = 0;
+
+    if ( context->device.logicalDevice )
     {
-      vkDestroyDevice( context->logicalDevice, &context->allocationCallbacks );
-      context->logicalDevice = 0;
+      vkDestroyDevice( context->device.logicalDevice, &context->allocationCallbacks );
+      context->device.logicalDevice = 0;
+      log_info( "Logical device destroyed." );
     }
 
-    context->physicalDevice = 0;
-    context->swapchainSupportInfo = SwapchainSupportInfo {};
+    context->device.physicalDevice = 0;
+    context->device.swapchainSupportInfo = SwapchainSupportInfo {};
   }
 
   void init( VulkanContext& context )
   {
     context = {};
-    context.allocationUserData.allocations.reserve( 256 );
-    context.allocationUserData.sizes.reserve( 256 );
+    #if defined(BSE_VK_USE_CUSTOM_ALLOCATOR)
+    context.allocationUserData.allocations.reserve( 1024 );
+    context.allocationUserData.sizes.reserve( 1024 );
     context.allocationCallbacks.pUserData = &context.allocationUserData;
+    #endif
     context.allocationCallbacks.pfnAllocation = BSE_vkAllocationFunction;
     context.allocationCallbacks.pfnReallocation = BSE_vkReallocationFunction;
     context.allocationCallbacks.pfnFree = BSE_vkFreeFunction;
@@ -737,9 +696,10 @@ namespace bse
       BREAK;
       return;
     }
+    bse::memory::clear_temporary();
 
-    query_swapchain_support( context.physicalDevice, surface, &context.swapchainSupportInfo );
-    log_info( "Available present modes: ", context.swapchainSupportInfo.presentModes );
+    query_swapchain_support( context.device.physicalDevice, surface, &context.device.swapchainSupportInfo );
+    log_info( "Available present modes: ", context.device.swapchainSupportInfo.presentModes );
 
     //device
     if ( !create_logical_device( &context ) )
@@ -749,6 +709,13 @@ namespace bse
     }
 
     log_info( "Logical device created." );
+
+    vkGetDeviceQueue( context.device.logicalDevice, context.device.queueInfo.graphicsFamilyIndex, 0, &context.device.graphicsQueue );
+    vkGetDeviceQueue( context.device.logicalDevice, context.device.queueInfo.presentFamilyIndex, 0, &context.device.presentQueue );
+    vkGetDeviceQueue( context.device.logicalDevice, context.device.queueInfo.transferFamilyIndex, 0, &context.device.transferQueue );
+    bse::memory::clear_temporary();
+
+
 
 
 

@@ -90,12 +90,12 @@ int bse_win64_init( int argc, char** argv )
       , bse::platform->info.virtualMemoryPageSize - sizeof( bse::memory::Multipool ), 16
       , bse::memory::AllocatorPolicyFlags::AllowGrowth | bse::memory::AllocatorPolicyFlags::GeometricGrowth | bse::memory::AllocatorPolicyFlags::ThreadSafe );
 
-    constexpr s64 sizePerFrame = MegaBytes( 1 ) - sizeof( bse::memory::Arena );
+    // constexpr s64 sizePerFrame = MegaBytes( 1 ) - sizeof( bse::memory::Arena );
 
-    for ( s32 i = 0; i < array_count( bse::platform->allocators.temporary ); ++i )
-    {
-      bse::platform->allocators.temporary[i] = bse::memory::new_arena( &bse::platform->allocators.virtualMemory.temporary, sizePerFrame, bse::memory::AllocatorPolicyFlags::AllowGrowth );
-    }
+    // for ( s32 i = 0; i < array_count( bse::platform->allocators.frameArena ); ++i )
+    // {
+    //   bse::platform->allocators.frameArena[i] = bse::memory::new_arena( &bse::platform->allocators.virtualMemory.temporary, sizePerFrame, bse::memory::AllocatorPolicyFlags::AllowGrowth );
+    // }
 
     win64::get_exe_path( stack, BSE_STACK_BUFFER_MEDIUM );
     bse::string_replace_char( stack, '\\', '/' );

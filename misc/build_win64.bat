@@ -5,6 +5,7 @@ IF NOT DEFINED VULKAN_SDK (
   echo ERROR - VULKAN_SDK environment variable not set, aborting
   goto help_section
 )
+
 setlocal EnableDelayedExpansion
 
 set bat_path=%~dp0
