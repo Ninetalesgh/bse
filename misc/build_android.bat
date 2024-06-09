@@ -1,12 +1,5 @@
 @echo off 
-IF NOT DEFINED BSE_JAVA_BIN_PATH call shell_android.bat
-
-IF NOT DEFINED ANDROID_SDK_ROOT (
-  echo ERROR - ANDROID_SDK_ROOT environment variable not set, aborting
-  rem unset this so the check above goes through
-  set BSE_JAVA_BIN_PATH=
-  goto error_section
-)
+IF NOT DEFINED BSE_ANDROID_BUILD_SHELL_READY call shell_android.bat
 
 IF NOT DEFINED BSE_CODE_PATH (
   echo ERROR - Don't run build_android.bat directly, run "build.bat android" instead.

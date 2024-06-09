@@ -34,5 +34,3 @@ echo couldn't find vcvarsall.bat, please add your vcvarsall.bat path to the vcPa
 (endlocal & rem call environment setup outside of local scope
 call %callPath% x64
 )
-
-set path=%~dp0;%path%

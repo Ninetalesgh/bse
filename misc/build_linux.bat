@@ -6,17 +6,22 @@ IF NOT DEFINED BSE_CODE_PATH (
   goto error_section
 )
 
+IF NOT DEFINED BSE_CLANG_ROOT (
+  echo ERROR - Don't run build_linux.bat directly, run "build.bat linux" instead.
+  goto error_section
+)
+
 setlocal EnableDelayedExpansion
 pushd "%BSE_OUT_PATH%"
 
 
 
 set clang="%BSE_CLANG_ROOT:"=%\bin\clang++.exe"
-set sysroot=%BSE_CLANG_SYSROOT:"=%
+set sysroot="%BSE_CLANG_SYSROOT:"=%"
 
 
 
-set compiler_options=-I "%BSE_CODE_PATH%\;%sysroot%\usr\include\" --sysroot="%sysroot%" -g -DBSE_PLATFORM_LINUX -std=c++20 -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wformat -Wall -Werror=format-security -fno-limit-debug-info -fPIC
+set compiler_options=-I "%BSE_CODE_PATH%\" --sysroot=%sysroot% -g -DBSE_PLATFORM_LINUX -std=c++20 -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wformat -Wall -Werror=format-security -fno-limit-debug-info -fPIC
 IF NOT %BSE_APP_PATH%=="" set compiler_options=%compiler_options% -DBSE_BUILD_APP_PATH=%BSE_APP_PATH%
 set linker_options=-lGLESv3 -lvulkan -static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--fatal-warnings -Wl,--gc-sections -Wl,--no-undefined -Qunused-arguments -llog -latomic -lm 
 
@@ -49,8 +54,7 @@ goto skip_build_debug
   IF NOT EXIST development mkdir development
   pushd development
 
-  rem set compiler_options_development=%compiler_options% -DBSE_BUILD_DEVELOPMENT
-  set compiler_options_development=--sysroot="%sysroot%" -I"%sysroot%\usr\include\" -DBSE_BUILD_DEVELOPMENT
+  set compiler_options_development=%compiler_options% -DBSE_BUILD_DEVELOPMENT
 
   %clang% %BSE_CODE_PATH%\bse_main.cpp --target=x86_64-linux-gnu %compiler_options_development% %linker_options%
 
