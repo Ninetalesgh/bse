@@ -59,6 +59,20 @@ namespace bse
     using vulkan_physical_device_supports_presentation_fn = bool( VkPhysicalDevice, u32 familyIndex );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////// Network ///////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    using socket_create_fn = Socket( SocketType type );
+    using socket_destroy_fn = void( Socket socket );
+    using socket_bind_fn = bool( Socket socket, Ipv4Address const& ipv4Address );
+    using socket_listen_fn = bool( Socket socket );
+    using socket_accept_fn = bool( Socket socket, Socket* out_socket, Ipv4Address* out_remoteAddress );
+    using socket_connect_fn = bool( Socket socket, Ipv4Address const& ipv4Address );
+    using socket_send_fn = bool( Socket socket, char const* data, s32 size );
+    using socket_receive_fn = bool( Socket socket, char* receiveBuffer, s32 receiveBufferSize, s32* out_bytesReceived );
+    using socket_get_last_error_message_fn = void( char* buffer, s32 bufferSize );
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// System ////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -98,6 +112,16 @@ namespace bse
     ////////// Vulkan ////////////////////////////////////////////////////////////////////////////////////
     platformcallback::vulkan_create_surface_fn* vulkan_create_surface;
     platformcallback::vulkan_physical_device_supports_presentation_fn* vulkan_physical_device_supports_presentation;
+    ////////// Network ///////////////////////////////////////////////////////////////////////////////////
+    platformcallback::socket_create_fn* socket_create;
+    platformcallback::socket_destroy_fn* socket_destroy;
+    platformcallback::socket_bind_fn* socket_bind;
+    platformcallback::socket_listen_fn* socket_listen;
+    platformcallback::socket_accept_fn* socket_accept;
+    platformcallback::socket_connect_fn* socket_connect;
+    platformcallback::socket_send_fn* socket_send;
+    platformcallback::socket_receive_fn* socket_receive;
+    platformcallback::socket_get_last_error_message_fn* socket_get_last_error_message;
     ////////// System ////////////////////////////////////////////////////////////////////////////////////
     platformcallback::shutdown_fn* shutdown;
 

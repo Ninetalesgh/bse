@@ -29,7 +29,8 @@
 #include <stdio.h>
 
 #define VK_USE_PLATFORM_WIN32_KHR
-#include <windows.h>
+#include <ws2tcpip.h>
+
 #include <vulkan/vulkan_win32.h>
 
 #ifdef ERROR

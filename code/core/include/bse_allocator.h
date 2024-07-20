@@ -94,7 +94,7 @@ namespace bse
     ///// free(arena, ptr) is ruthless and will pop back to ptr,       ///////////////////////////////////
     ///// so unless you are aware of that only ever LIFO like a stack. ///////////////////////////////////
     ///// If reallocate is called on the last allocation it won't      ///////////////////////////////////
-    ///// have to move any data around, it will simple add more space. ///////////////////////////////////
+    ///// have to move any data around, it will simply add more space. ///////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     struct Arena;
@@ -102,7 +102,7 @@ namespace bse
     [[nodiscard]] void* reallocate( Arena* arena, void* ptr, s64 oldSize, s64 newSize );
     void free( Arena* arena, void* ptr );
 
-    //this does not release memory
+    //this does not release memory, just resets the write pointer
     void clear_arena( Arena* arena );
 
     //in-place arenas

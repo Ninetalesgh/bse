@@ -8,13 +8,13 @@
 ///// These are working even with BSE_BUILD_RELEASE.                      ////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define log_info( ... ) bse::debug::log({bse::debug::LogSeverity::INFO, bse::debug::LogOutputType::ALL}, __VA_ARGS__)
-#define log_warning( ... ) bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::ALL}, __VA_ARGS__)
+#define log_info( ... ) bse::debug::log({bse::debug::LogSeverity::BSE_LOG_SEVERITY_INFO, bse::debug::LogOutputType::ALL}, __VA_ARGS__)
+#define log_warning( ... ) bse::debug::log({bse::debug::LogSeverity::BSE_LOG_SEVERITY_WARNING, bse::debug::LogOutputType::ALL}, __VA_ARGS__)
 
 #if defined(BSE_BUILD_DEBUG)
-#define log_error( ... ) { BREAK; bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::ALL}, __VA_ARGS__); }
+#define log_error( ... ) { BREAK; bse::debug::log({bse::debug::LogSeverity::BSE_LOG_SEVERITY_ERROR, bse::debug::LogOutputType::ALL}, __VA_ARGS__); }
 #else 
-#define log_error( ... ) bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::ALL}, __VA_ARGS__)
+#define log_error( ... ) bse::debug::log({bse::debug::LogSeverity::BSE_LOG_SEVERITY_ERROR, bse::debug::LogOutputType::ALL}, __VA_ARGS__)
 #endif
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -24,9 +24,9 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if defined(BSE_BUILD_DEBUG_DEVELOPMENT)
-# define debug_log_info( ... ) bse::debug::log({bse::debug::LogSeverity::INFO, bse::debug::LogOutputType::LOCAL_AND_FILE}, "[DEV] ", __VA_ARGS__)
-# define debug_log_warning( ... ) bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::LOCAL_AND_FILE}, "[DEV] ", __VA_ARGS__)
-# define debug_log_error( ... ) bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::LOCAL_AND_FILE}, "[DEV] ", __VA_ARGS__)
+# define debug_log_info( ... ) bse::debug::log({bse::debug::LogSeverity::BSE_LOG_SEVERITY_INFO, bse::debug::LogOutputType::LOCAL_AND_FILE}, "[DEV] ", __VA_ARGS__)
+# define debug_log_warning( ... ) bse::debug::log({bse::debug::LogSeverity::BSE_LOG_SEVERITY_WARNING, bse::debug::LogOutputType::LOCAL_AND_FILE}, "[DEV] ", __VA_ARGS__)
+# define debug_log_error( ... ) bse::debug::log({bse::debug::LogSeverity::BSE_LOG_SEVERITY_ERROR, bse::debug::LogOutputType::LOCAL_AND_FILE}, "[DEV] ", __VA_ARGS__)
 #else
 # define debug_log_info( ... ) {}
 # define debug_log_warning( ... ) {}
@@ -46,11 +46,11 @@
 # define assert(expression) { if ( !(expression) ) BREAK; }
 # define check(expression, ...) {if ( !(expression) ){debug_log_warning(__VA_ARGS__); BREAK;}}
 #elif defined(BSE_BUILD_DEVELOPMENT)
-# define BREAK {bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::LOCAL_CONSOLE}, "break in ", __FILE__," #", __LINE__ );}
-# define assert(expression) if (!(expression)) { bse::debug::log({bse::debug::LogSeverity::ERROR, bse::debug::LogOutputType::ALL}, "assert in ", __FILE__," #", __LINE__ );}
+# define BREAK {bse::debug::log({bse::debug::LogSeverity::BSE_LOG_SEVERITY_WARNING, bse::debug::LogOutputType::LOCAL_CONSOLE}, "break in ", __FILE__," #", __LINE__ );}
+# define assert(expression) if (!(expression)) { bse::debug::log({bse::debug::LogSeverity::BSE_LOG_SEVERITY_ERROR, bse::debug::LogOutputType::ALL}, "assert in ", __FILE__," #", __LINE__ );}
 # define check(expression, ...) {if ( !(expression) ){debug_log_warning(__VA_ARGS__);}}
 #else
-# define BREAK {bse::debug::log({bse::debug::LogSeverity::WARNING, bse::debug::LogOutputType::REMOTE_AND_FILE}, "break in ", __FILE__," #", __LINE__ );}
+# define BREAK {bse::debug::log({bse::debug::LogSeverity::BSE_LOG_SEVERITY_WARNING, bse::debug::LogOutputType::REMOTE_AND_FILE}, "break in ", __FILE__," #", __LINE__ );}
 # define assert(expression) if (!(expression)) { bse::debug::controlled_crash( __FILE__, __LINE__ ); }
 //# define BREAK {}
 //# define assert(expression) {}
@@ -86,10 +86,10 @@ namespace bse
 
     enum class LogSeverity : u8
     {
-      NONE    = 0x0,
-      INFO    = 0x1,
-      WARNING = 0x2,
-      ERROR   = 0x3,
+      BSE_LOG_SEVERITY_NONE    = 0x0,
+      BSE_LOG_SEVERITY_INFO    = 0x1,
+      BSE_LOG_SEVERITY_WARNING = 0x2,
+      BSE_LOG_SEVERITY_ERROR   = 0x3,
     };
 
     enum class LogOutputType : u8

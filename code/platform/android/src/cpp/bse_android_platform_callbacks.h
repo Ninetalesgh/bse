@@ -76,9 +76,9 @@ namespace android
 
   void debug_log( bse::debug::LogParameters const& parameters, char const* string, s32 size )
   {
-    s32 prio = parameters.severity == bse::debug::LogSeverity::INFO ? ANDROID_LOG_INFO :
-      parameters.severity == bse::debug::LogSeverity::WARNING ? ANDROID_LOG_WARN :
-      parameters.severity == bse::debug::LogSeverity::ERROR ? ANDROID_LOG_ERROR : ANDROID_LOG_DEFAULT;
+    s32 prio = parameters.severity == bse::debug::LogSeverity::BSE_LOG_SEVERITY_INFO ? ANDROID_LOG_INFO :
+      parameters.severity == bse::debug::LogSeverity::BSE_LOG_SEVERITY_WARNING ? ANDROID_LOG_WARN :
+      parameters.severity == bse::debug::LogSeverity::BSE_LOG_SEVERITY_ERROR ? ANDROID_LOG_ERROR : ANDROID_LOG_DEFAULT;
 
     __android_log_write( prio, "[BSE]", string );
   };

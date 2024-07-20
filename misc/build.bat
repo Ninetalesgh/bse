@@ -9,6 +9,8 @@ set BSE_APP_PATH=""
 set BSE_OUT_NAME=
 set BSE_OUT_PATH=
 set BSE_CODE_PATH=
+set BSE_INCLUDE_PATHS=""
+set BSE_LIBRARY_PATHS=""
 set BSE_BAT_PATH=%~dp0
 
 IF "%~1"=="build" SHIFT
@@ -47,6 +49,29 @@ IF NOT "%~0"=="" (
       IF "%BSE_OUT_NAME%"=="" set BSE_OUT_NAME=%~n1
       IF "%BSE_OUT_PATH%"=="" set BSE_OUT_PATH=%~dp1..\..\build\%~n1
       SHIFT
+    ) ELSE (
+      echo '-app' needs the path to the app as parameter
+      goto build_end
+    )
+    goto loop_parse_parameters
+  )
+  IF "%~0"=="-include" (
+    IF NOT "%~1"=="" (
+      set BSE_INCLUDE_PATHS="%~1"
+      SHIFT
+    ) ELSE (
+      echo '-include' needs include folder paths as parameter
+      goto build_end
+    )
+    goto loop_parse_parameters
+  )
+  IF "%~0"=="-lib" (
+    IF NOT "%~1"=="" (
+      set BSE_LIBRARY_PATHS="%~1"
+      SHIFT
+    ) ELSE (
+      echo '-lib' needs include folder paths as parameter
+      goto build_end
     )
     goto loop_parse_parameters
   )
@@ -88,7 +113,7 @@ set BSE_OUT_PATH_ROOT=%BSE_OUT_PATH%
 
 echo.
 echo ==============================================================
-echo Building BSE
+echo BSE build info
 echo --------------------------------------------------------------
 echo %BSE_PLATFORM_CONFIG:-= %
 echo %BSE_BUILD_CONFIG:-= %
@@ -152,6 +177,9 @@ IF x%BSE_PLATFORM_CONFIG:android=%==x%BSE_PLATFORM_CONFIG% goto skip_platform_an
   echo.
 :skip_platform_android
 
+
+
+
 :build_end
 
 set BSE_BUILD_CONFIG=
@@ -161,4 +189,6 @@ set BSE_OUT_NAME=
 set BSE_OUT_PATH=
 set BSE_OUT_PATH_ROOT=
 set BSE_CODE_PATH=
+set BSE_INCLUDE_PATHS=
+set BSE_LIBRARY_PATHS=
 set BSE_BAT_PATH=

@@ -5,6 +5,10 @@ namespace bse
 {
   namespace debug
   {
+    //forward trivial messages directly to the output
+    template<> void log( LogParameters const& parameters, char* message ) { platform->debug_log( parameters, message, 0 ); }
+    template<> void log( LogParameters const& parameters, char const* message ) { platform->debug_log( parameters, message, 0 ); }
+
     template<typename... Args> void log( LogParameters const& parameters, Args... args )
     {
       char debugBuffer[BSE_STACK_BUFFER_LARGE];

@@ -81,8 +81,8 @@ namespace win64
     static char const* warningPrefix = "[Warning] ";
     static char const* infoPrefix = "";
 
-    // char const* prefix = parameters.severity == bse::debug::LogSeverity::INFO ? infoPrefix :
-     //  parameters.severity == bse::debug::LogSeverity::WARNING ? warningPrefix : errorPrefix;
+    // char const* prefix = parameters.severity == bse::debug::LogSeverity::BSE_LOG_SEVERITY_INFO ? infoPrefix :
+     //  parameters.severity == bse::debug::LogSeverity::BSE_LOG_SEVERITY_WARNING ? warningPrefix : errorPrefix;
 
      //printf( prefix );
 
@@ -411,7 +411,77 @@ namespace win64
   ////////// Networking ////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
+  bse::Socket socket_create( bse::SocketType type )
+  {
+    return (bse::Socket) socket( AF_INET, (s32) type, 0 );
+  }
 
+  void socket_destroy( s32 socket )
+  {
+    closesocket( socket );
+  }
+
+  bool socket_connect( bse::Socket socket, bse::Ipv4Address const& ipv4Address )
+  {
+    sockaddr_in address;
+    address.sin_port = htons( ipv4Address.port );
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = ipv4Address.address;
+
+    return connect( socket, (const sockaddr*) &address, sizeof( address ) ) == 0;
+  }
+
+  bool socket_bind( bse::Socket socket, bse::Ipv4Address const& ipv4Address )
+  {
+    sockaddr_in address;
+    address.sin_port = htons( ipv4Address.port );
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = ipv4Address.address;
+
+    return bind( socket, (LPSOCKADDR) &address, sizeof( address ) ) != SOCKET_ERROR;
+  }
+
+  bool socket_listen( bse::Socket socket )
+  {
+    return listen( socket, SOMAXCONN ) != SOCKET_ERROR;
+  }
+
+  bool socket_accept( bse::Socket socket, bse::Socket* out_socket, bse::Ipv4Address* out_remoteAddress )
+  {
+    sockaddr_in remoteAddress;
+    s32 remoteAddrSize = sizeof( remoteAddress );
+    *out_socket = (s32) accept( socket, (sockaddr*) &remoteAddress, &remoteAddrSize );
+
+    if ( *out_socket == SOCKET_ERROR )
+    {
+      out_remoteAddress->address = bse::IPv4_ADDRESS_INVALID;
+      out_remoteAddress->port = bse::PORT_INVALID;
+      return false;
+    }
+    else
+    {
+      out_remoteAddress->address = remoteAddress.sin_addr.s_addr;
+      out_remoteAddress->port = ntohs( remoteAddress.sin_port );
+      return true;
+    }
+  }
+
+  bool socket_send( bse::Socket socket, char const* data, s32 size )
+  {
+    return send( socket, data, size, 0 ) != SOCKET_ERROR;
+  }
+
+  bool socket_receive( bse::Socket socket, char* receiveBuffer, s32 receiveBufferSize, s32* out_bytesReceived )
+  {
+    *out_bytesReceived = recv( socket, receiveBuffer, receiveBufferSize, 0 );
+    return *out_bytesReceived != SOCKET_ERROR;
+  }
+
+  void socket_get_last_error_message( char* buffer, s32 bufferSize )
+  {
+    s32 bytesWritten = FormatMessageA( FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 0, WSAGetLastError(), 0, buffer, bufferSize, 0 );
+    buffer[min( bytesWritten, bufferSize )] = '\0';
+  }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// Audio /////////////////////////////////////////////////////////////////////////////////////
@@ -454,6 +524,16 @@ namespace win64
     global::platform.vulkan_create_surface = &vulkan_create_surface;
     global::platform.vulkan_physical_device_supports_presentation = &vulkan_physical_device_supports_presentation;
 
+    ////////// Network /////////////////////////////////////////////////////////////////////////////////
+    global::platform.socket_create = &socket_create;
+    global::platform.socket_destroy = &socket_destroy;
+    global::platform.socket_bind = &socket_bind;
+    global::platform.socket_listen = &socket_listen;
+    global::platform.socket_accept = &socket_accept;
+    global::platform.socket_connect = &socket_connect;
+    global::platform.socket_send = &socket_send;
+    global::platform.socket_receive = &socket_receive;
+    global::platform.socket_get_last_error_message = &socket_get_last_error_message;
     ////////// System //////////////////////////////////////////////////////////////////////////////////
     global::platform.shutdown = &shutdown;
 
