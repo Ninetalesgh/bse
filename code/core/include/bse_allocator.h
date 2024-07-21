@@ -15,9 +15,9 @@ namespace bse
     ///// so use as often as you like but cautiously!                  ///////////////////////////////////
     /////                                                              ///////////////////////////////////
     ///// Allocations in the non-volatile allocators expect a size     ///////////////////////////////////
-    ///// for freeing, unless the size is larger than a virtual page,  ///////////////////////////////////
-    ///// then the OS does the rest and you can ignore the size,       ///////////////////////////////////
-    ///// if you really must.                                          ///////////////////////////////////
+    ///// for freeing. If you don't want to remember the allocation    ///////////////////////////////////
+    ///// size then you can use the given functions.                   ///////////////////////////////////
+    ///// Only use allocations and frees associated with each other.   ///////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     //allocate in the default frame memory
@@ -37,6 +37,10 @@ namespace bse
     [[nodiscard]] void* allocate_thread_safe( s64 size );
     [[nodiscard]] void* reallocate_thread_safe( void* ptr, s64 oldSize, s64 newSize );
     void free_thread_safe( void* ptr, s64 size );
+
+    [[nodiscard]] void* allocate_thread_safe_dont_remember_size( s64 size );
+    [[nodiscard]] void* reallocate_thread_safe_dont_remember_size( void* ptr, s64 newSize );
+    void free_thread_safe_dont_remember_size( void* ptr );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// General ///////////////////////////////////////////////////////////////////////////////////
@@ -284,5 +288,30 @@ namespace bse
 
     template<typename T, typename U> bool operator ==( AllocatorProxy<T> const&, AllocatorProxy<U> const& ) { return true; }
     template<typename T, typename U> bool operator !=( AllocatorProxy<T> const&, AllocatorProxy<U> const& ) { return false; }
+
+    template<typename T>
+    struct TempAllocatorProxy
+    {
+      using value_type = T;
+      using propagate_on_container_move_assignment = std::true_type;
+      using is_always_equal = std::true_type;
+      using difference_type = std::ptrdiff_t;
+
+      constexpr TempAllocatorProxy() noexcept {}
+      constexpr TempAllocatorProxy( TempAllocatorProxy const& ) = default;
+      template<typename U> constexpr TempAllocatorProxy( TempAllocatorProxy<U> const& ) noexcept {}
+      ~TempAllocatorProxy() = default;
+      constexpr TempAllocatorProxy& operator=( const TempAllocatorProxy& ) = default;
+
+      void deallocate( T* ptr, s64 size ) {}
+      T* allocate( s64 size )
+      {
+        return (T*) allocate_temporary( size * sizeof( T ) );
+      }
+    };
+
+    template<typename T, typename U> bool operator ==( TempAllocatorProxy<T> const&, TempAllocatorProxy<U> const& ) { return true; }
+    template<typename T, typename U> bool operator !=( TempAllocatorProxy<T> const&, TempAllocatorProxy<U> const& ) { return false; }
+
   };
 };

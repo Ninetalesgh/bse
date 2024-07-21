@@ -13,45 +13,25 @@ void initialize_app_data()
   //called once after the platform is fully initialized for you to initialize your app data
   using namespace bse;
 
-  SSL_library_init();
-  SSL_load_error_strings();
-  OpenSSL_add_ssl_algorithms();
 
-  char const* hostname = "80.77.17.12";
-  bse::Ipv4Address address( parse_ipv4( hostname ), 443 );
+  openssl::init();
 
-  SSL_CTX* context = bse::openssl::create_context();
+  char const* hostname = "lehmwelt.at";
+  bse::Ipv4AddressWithPort address( parse_ipv4( hostname ), 443 );
 
-  bse::Socket socket = bse::socket_create_tcp();
+  SSL_CTX* context = bse::openssl::create_context_tls();
 
-  if ( socket_connect( socket, address ) )
+  openssl::TLSConnection connection {};
+
+  if ( !openssl::connect( context, hostname, 443, &connection ) )
   {
-    SSL* ssl = SSL_new( context );
-    if ( !SSL_set_tlsext_host_name( ssl, hostname ) )
-    {
-      BREAK;
-    }
-
-    SSL_set_fd( ssl, socket );
-    if ( SSL_connect( ssl ) == -1 )
-    {
-      openssl::log_last_errors();
-      BREAK;
-    }
-
-    // char request[512] = {};
-    // string_format( request, array_count( request ), "HTML" );
-
-    // if ( socket_send( socket, request, array_count( request ) ) )
-    // {
-    //   while ( true )
-    //   {
-    //     //socket_receive/()
-    //   }
-    // }
+    BREAK;
   }
 
-  EVP_cleanup();
+
+
+  openssl::disconnect( &connection );
+  openssl::cleanup();
 }
 
 void on_reload()

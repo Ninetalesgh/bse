@@ -22,7 +22,7 @@ int bse_android_init()
     , bse::memory::AllocatorPolicyFlags::AllowGrowth | bse::memory::AllocatorPolicyFlags::GeometricGrowth | bse::memory::AllocatorPolicyFlags::ThreadSafe );
 
   log_info( "Multipool allocators initialized." );
-  //bse::platform->allocate_virtual_memory
+  //bse::platform->memory_allocate_virtual
 
 //  s64 address = 
 
@@ -61,7 +61,7 @@ int bse_android_init()
 
 
 
-extern "C" JNIEXPORT void JNICALL Java_com_bse_core_BseMainActivity_initializeNative( JNIEnv * env, jobject /* this */, jobject surface ) {
+extern "C" JNIEXPORT void JNICALL Java_com_bse_core_BseMainActivity_initializeNative( JNIEnv* env, jobject /* this */, jobject surface ) {
   bse::platform = &global::platform;
   android::register_platform_callbacks();
 
@@ -77,7 +77,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_bse_core_BseMainActivity_initializeNa
   }
 }
 
-extern "C" JNIEXPORT void JNICALL Java_com_bse_core_BseMainActivity_shutdownNative( JNIEnv * env, jobject /* this */ )
+extern "C" JNIEXPORT void JNICALL Java_com_bse_core_BseMainActivity_shutdownNative( JNIEnv* env, jobject /* this */ )
 {
   if ( bse::platform != nullptr )
   {
@@ -90,7 +90,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_bse_core_BseMainActivity_shutdownNati
 
 
 
-extern "C" JNIEXPORT jstring JNICALL Java_com_bse_core_BseMainActivity_stringFromJNI( JNIEnv * env, jobject /* this */ )
+extern "C" JNIEXPORT jstring JNICALL Java_com_bse_core_BseMainActivity_stringFromJNI( JNIEnv* env, jobject /* this */ )
 {
   bse::platform = &global::platform;
   android::register_platform_callbacks();

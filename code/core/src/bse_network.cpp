@@ -17,7 +17,7 @@ namespace bse
     platform->socket_destroy( socket );
   }
 
-  bool socket_bind( Socket socket, Ipv4Address const& ipv4Address )
+  bool socket_bind( Socket socket, Ipv4AddressWithPort const& ipv4Address )
   {
     if ( !platform->socket_bind( socket, ipv4Address ) )
     {
@@ -43,7 +43,7 @@ namespace bse
     return true;
   }
 
-  bool socket_accept( Socket socket, Socket* out_socket, Ipv4Address* out_remoteAddressOptional )
+  bool socket_accept( Socket socket, Socket* out_socket, Ipv4AddressWithPort* out_remoteAddressOptional )
   {
     if ( !platform->socket_accept( socket, out_socket, out_remoteAddressOptional ) )
     {
@@ -56,7 +56,7 @@ namespace bse
     return true;
   }
 
-  bool socket_connect( Socket socket, Ipv4Address const& ipv4Address )
+  bool socket_connect( Socket socket, Ipv4AddressWithPort const& ipv4Address )
   {
     if ( !platform->socket_connect( socket, ipv4Address ) )
     {
@@ -67,6 +67,22 @@ namespace bse
       return false;
     }
     return true;
+  }
+
+  bool socket_connect( Socket socket, char const* hostname, u16 port )
+  {
+    bse::Vector<Ipv4Address> addresses;
+    bse::Vector<Ipv6Address> addresses6;
+    ResolveHostnameResult hostnameResult;
+    if ( platform->dns_resolve_hostname( hostname, &hostnameResult ) )
+    {
+      if ( addresses.size() )
+      {
+        return socket_connect( socket, { addresses[0], port } );
+      }
+    }
+
+    return false;
   }
 
   bool socket_send( Socket socket, char const* data, s32 size )
@@ -94,9 +110,6 @@ namespace bse
     }
     return true;
   }
-
-
-
 
   u32 parse_ipv4( char const* from )
   {
@@ -127,12 +140,16 @@ namespace bse
     return result;
   }
 
-
-  template<> INLINE s32 string_format_internal<Ipv4Address>( char* destination, s32 capacity, Ipv4Address connection )
+  template<> INLINE s32 string_format_internal<Ipv4AddressWithPort>( char* destination, s32 capacity, Ipv4AddressWithPort connection )
   {
-    return string_format( destination, capacity, connection.addressPart0, ".", connection.addressPart1, ".",
-                              connection.addressPart2, ".", connection.addressPart3,
+    return string_format( destination, capacity, connection.ipv4.addressPart0, ".", connection.ipv4.addressPart1, ".",
+                              connection.ipv4.addressPart2, ".", connection.ipv4.addressPart3,
                               ":", connection.port ) - 1;
   }
 
+  template<> INLINE s32 string_format_internal<Ipv4Address>( char* destination, s32 capacity, Ipv4Address address )
+  {
+    return string_format( destination, capacity, address.addressPart0, ".", address.addressPart1, ".",
+                              address.addressPart2, ".", address.addressPart3 ) - 1;
+  }
 };

@@ -16,9 +16,9 @@ namespace win64
   ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  void* allocate_virtual_memory( s64 size );
-  void free_virtual_memory( void* allocationToFree, s64 size );
-  void decommit_virtual_memory( void* committedMemory, s64 size );
+  void* memory_allocate_virtual( s64 size );
+  void memory_free_virtual( void* allocationToFree, s64 size );
+  void memory_decommit_virtual( void* committedMemory, s64 size );
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
@@ -102,7 +102,7 @@ namespace win64
   ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  void* allocate_virtual_memory( s64 size )
+  void* memory_allocate_virtual( s64 size )
   {
     // if ( size > MegaBytes( 1 ) )
     // {
@@ -127,7 +127,7 @@ namespace win64
     return result;
   }
 
-  void decommit_virtual_memory( void* committedMemory, s64 size )
+  void memory_decommit_virtual( void* committedMemory, s64 size )
   {
     if ( VirtualFree( committedMemory, size, MEM_DECOMMIT ) )
     {
@@ -135,13 +135,28 @@ namespace win64
     }
   }
 
-  void free_virtual_memory( void* allocationToFree, s64 size )
+  void memory_free_virtual( void* allocationToFree, s64 size )
   {
     //free( allocationToFree );
     if ( !VirtualFree( allocationToFree, 0, MEM_RELEASE ) )
     {
       windows_error();
     }
+  }
+
+  void* memory_allocate_dont_remember_size( s64 size )
+  {
+    return malloc( size );
+  }
+
+  void* memory_reallocate_dont_remember_size( void* ptr, s64 size )
+  {
+    return realloc( ptr, size );
+  }
+
+  void memory_free_dont_remember_size( void* allocation )
+  {
+    return free( allocation );
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -421,22 +436,22 @@ namespace win64
     closesocket( socket );
   }
 
-  bool socket_connect( bse::Socket socket, bse::Ipv4Address const& ipv4Address )
+  bool socket_connect( bse::Socket socket, bse::Ipv4AddressWithPort const& to )
   {
     sockaddr_in address;
-    address.sin_port = htons( ipv4Address.port );
+    address.sin_port = htons( to.port );
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = ipv4Address.address;
+    address.sin_addr.s_addr = to.ipv4;
 
     return connect( socket, (const sockaddr*) &address, sizeof( address ) ) == 0;
   }
 
-  bool socket_bind( bse::Socket socket, bse::Ipv4Address const& ipv4Address )
+  bool socket_bind( bse::Socket socket, bse::Ipv4AddressWithPort const& ipv4Address )
   {
     sockaddr_in address;
     address.sin_port = htons( ipv4Address.port );
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = ipv4Address.address;
+    address.sin_addr.s_addr = ipv4Address.ipv4;
 
     return bind( socket, (LPSOCKADDR) &address, sizeof( address ) ) != SOCKET_ERROR;
   }
@@ -446,7 +461,7 @@ namespace win64
     return listen( socket, SOMAXCONN ) != SOCKET_ERROR;
   }
 
-  bool socket_accept( bse::Socket socket, bse::Socket* out_socket, bse::Ipv4Address* out_remoteAddress )
+  bool socket_accept( bse::Socket socket, bse::Socket* out_socket, bse::Ipv4AddressWithPort* out_remoteAddress )
   {
     sockaddr_in remoteAddress;
     s32 remoteAddrSize = sizeof( remoteAddress );
@@ -454,13 +469,13 @@ namespace win64
 
     if ( *out_socket == SOCKET_ERROR )
     {
-      out_remoteAddress->address = bse::IPv4_ADDRESS_INVALID;
+      out_remoteAddress->ipv4 = bse::IPv4_ADDRESS_INVALID;
       out_remoteAddress->port = bse::PORT_INVALID;
       return false;
     }
     else
     {
-      out_remoteAddress->address = remoteAddress.sin_addr.s_addr;
+      out_remoteAddress->ipv4 = remoteAddress.sin_addr.s_addr;
       out_remoteAddress->port = ntohs( remoteAddress.sin_port );
       return true;
     }
@@ -475,6 +490,50 @@ namespace win64
   {
     *out_bytesReceived = recv( socket, receiveBuffer, receiveBufferSize, 0 );
     return *out_bytesReceived != SOCKET_ERROR;
+  }
+
+  bool dns_resolve_hostname( char const* hostname, bse::ResolveHostnameResult* out_result )
+  {
+    addrinfo hints = {};
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    addrinfo* addressInfos;
+
+    int errorCode = getaddrinfo( hostname, nullptr, &hints, &addressInfos );
+    if ( errorCode )
+    {
+      return false;
+    }
+
+    if ( out_result )
+    {
+      out_result->ipv4AddressCount = 0;
+      out_result->ipv6AddressCount = 0;
+
+      addrinfo* ai;
+      for ( ai = addressInfos; ai != NULL; ai = ai->ai_next )
+      {
+        if ( ai->ai_family == AF_INET )
+        {
+          if ( out_result->ipv4AddressCount < bse::ResolveHostnameResult::MAX_RESOLVED_IPS - 1 )
+          {
+            out_result->ipv4Addresses[out_result->ipv4AddressCount++] = ((sockaddr_in*) ai->ai_addr)->sin_addr.s_addr;
+          }
+        }
+        else
+        {
+          if ( out_result->ipv6AddressCount < bse::ResolveHostnameResult::MAX_RESOLVED_IPS - 1 )
+          {
+            BREAK; //untested
+            sockaddr_in6* ipv6 = (sockaddr_in6*) ai->ai_addr;
+            out_result->ipv6Addresses[out_result->ipv6AddressCount++] = bse::Ipv6Address( ipv6->sin6_addr.u.Word );
+          }
+        }
+      }
+    }
+
+    freeaddrinfo( addressInfos );
+    return true;
   }
 
   void socket_get_last_error_message( char* buffer, s32 bufferSize )
@@ -499,9 +558,12 @@ namespace win64
     global::platform.debug_log = &debug_log;
 
     ////////// Memory //////////////////////////////////////////////////////////////////////////////////
-    global::platform.allocate_virtual_memory = &allocate_virtual_memory;
-    global::platform.free_virtual_memory = &free_virtual_memory;
-    global::platform.decommit_virtual_memory = &decommit_virtual_memory;
+    global::platform.memory_allocate_virtual = &memory_allocate_virtual;
+    global::platform.memory_free_virtual = &memory_free_virtual;
+    global::platform.memory_decommit_virtual = &memory_decommit_virtual;
+    global::platform.memory_allocate_dont_remember_size = &memory_allocate_dont_remember_size;
+    global::platform.memory_reallocate_dont_remember_size = &memory_reallocate_dont_remember_size;
+    global::platform.memory_free_dont_remember_size = &memory_free_dont_remember_size;
 
     ////////// File IO /////////////////////////////////////////////////////////////////////////////////
     global::platform.get_file_info = &get_file_info;
@@ -533,6 +595,7 @@ namespace win64
     global::platform.socket_connect = &socket_connect;
     global::platform.socket_send = &socket_send;
     global::platform.socket_receive = &socket_receive;
+    global::platform.dns_resolve_hostname = &dns_resolve_hostname;
     global::platform.socket_get_last_error_message = &socket_get_last_error_message;
     ////////// System //////////////////////////////////////////////////////////////////////////////////
     global::platform.shutdown = &shutdown;

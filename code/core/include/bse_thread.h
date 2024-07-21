@@ -79,7 +79,7 @@ namespace bse
         thread::sleep( 0 );
       }
     }
-    void unlock_atomic( atomic<s32>& lock ) { assert( lock ); s32 expected = 1; lock.compare_exchange_strong( expected, 1 ); }
+    void unlock_atomic( atomic<s32>& lock ) { assert( lock ); s32 expected = 1; lock.compare_exchange_strong( expected, 0 ); }
 
     INLINE LockingObject::LockingObject( atomic<s32>* lock ) : lock( lock ) { lock_atomic( *lock ); }
     INLINE LockingObject::~LockingObject() { unlock_atomic( *lock ); }

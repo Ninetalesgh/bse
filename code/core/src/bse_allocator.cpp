@@ -22,6 +22,15 @@ namespace bse
     void* reallocate_thread_safe( void* ptr, s64 oldSize, s64 newSize ) { return reallocate( platform->allocators.threadSafe, ptr, oldSize, newSize ); }
     void free_thread_safe( void* ptr, s64 size ) { return free( platform->allocators.threadSafe, ptr, size ); }
 
+    void* allocate_thread_safe_dont_remember_size( s64 size ) { return platform->memory_allocate_dont_remember_size( size ); }
+    void* reallocate_thread_safe_dont_remember_size( void* ptr, s64 newSize )
+    {
+      if ( !ptr ) { return platform->memory_allocate_dont_remember_size( newSize ); }
+      if ( !newSize ) { platform->memory_free_dont_remember_size( ptr ); return nullptr; }
+      return platform->memory_reallocate_dont_remember_size( ptr, newSize );
+    }
+    void free_thread_safe_dont_remember_size( void* ptr ) { platform->memory_free_dont_remember_size( ptr ); }
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// General ///////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -191,7 +200,7 @@ namespace bse
         log_warning( "Allocation of ", size, " bytes only uses ", fill, " bytes of virtual page size ", platform->info.virtualMemoryPageSize, "." );
       }
       #endif
-      return platform->allocate_virtual_memory( size );
+      return platform->memory_allocate_virtual( size );
     }
 
     void* reallocate_virtual_memory( void* ptr, s64 oldSize, s64 newSize )
@@ -207,7 +216,7 @@ namespace bse
 
     void free_virtual_memory( void* ptr, s64 size )
     {
-      platform->free_virtual_memory( ptr, size );
+      platform->memory_free_virtual( ptr, size );
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -484,6 +493,11 @@ namespace bse
     ////////// Multipool /////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    INLINE AllocatorPolicyFlags _get_policy_for_child_pools( Multipool* multipool )
+    {
+      return multipool->policy & ~AllocatorPolicyFlags::ThreadSafe;
+    }
+
     void* allocate( Multipool* multipool, s64 size )
     {
       if ( size > multipool->poolSizeMax )
@@ -503,7 +517,7 @@ namespace bse
           {
             s64 const poolGranularity = min( multipool->poolSizeMax, (poolIndex + 1) * multipool->poolSizeGranularity );
             s64 const poolSize = multipool->defaultElementCount * poolGranularity;
-            pool = new_monotonic_pool( multipool->parent, poolSize, poolGranularity, multipool->policy );
+            pool = new_monotonic_pool( multipool->parent, poolSize, poolGranularity, _get_policy_for_child_pools( multipool ) );
           }
 
           if ( locked ) thread::unlock_atomic( multipool->allocatorLock );
@@ -587,7 +601,7 @@ namespace bse
         MonotonicPool*& pool = result->pools[0];
         pool->allocatorLock.store( 0, std::memory_order_relaxed );
         pool->type        = AllocatorType::MonotonicPool;
-        pool->policy      = policy;
+        pool->policy      = _get_policy_for_child_pools( result );
         pool->parent      = parent;
         pool->begin       = (char*) (pool + 1);
         pool->next        = (MonotonicPool::Slot*) pool->begin;
@@ -659,13 +673,13 @@ namespace bse
       char* pointer = nullptr;
       //assert( s64( platform->info.virtualMemoryAddressEnd - platform->info.virtualMemoryAddressBegin ) > networkSize + temporarySize + generalSize );
 
-      pointer = (char*) platform->allocate_virtual_memory( networkSize );
+      pointer = (char*) platform->memory_allocate_virtual( networkSize );
       init_arena_for_virtual_memory_layout( layout.network, &layout, pointer, networkSize, policy );
 
-      pointer = (char*) platform->allocate_virtual_memory( temporarySize );
+      pointer = (char*) platform->memory_allocate_virtual( temporarySize );
       init_arena_for_virtual_memory_layout( layout.temporary, &layout, pointer, temporarySize, policy );
 
-      //pointer = (char*) platform->allocate_virtual_memory( 0, generalSize );
+      //pointer = (char*) platform->memory_allocate_virtual( 0, generalSize );
       //init_arena_for_virtual_memory_layout( layout.general, &layout, pointer, generalSize, policy );
     }
 

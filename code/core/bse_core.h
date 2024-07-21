@@ -24,9 +24,13 @@ namespace bse
     ////////// Virtual Memory ////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    using allocate_virtual_memory_fn = void* (s64 size);
-    using decommit_virtual_memory_fn = void( void*, s64 size );
-    using free_virtual_memory_fn = void( void*, s64 size );
+    using memory_allocate_virtual_fn = void* (s64 size);
+    using memory_decommit_virtual_fn = void( void*, s64 size );
+    using memory_free_virtual_fn = void( void*, s64 size );
+
+    using memory_allocate_dont_remember_size_fn = void* (s64 size);
+    using memory_reallocate_dont_remember_size_fn = void* (void*, s64 newSize);
+    using memory_free_dont_remember_size_fn = void( void* );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
@@ -64,12 +68,13 @@ namespace bse
 
     using socket_create_fn = Socket( SocketType type );
     using socket_destroy_fn = void( Socket socket );
-    using socket_bind_fn = bool( Socket socket, Ipv4Address const& ipv4Address );
+    using socket_bind_fn = bool( Socket socket, Ipv4AddressWithPort const& addressAndPort );
     using socket_listen_fn = bool( Socket socket );
-    using socket_accept_fn = bool( Socket socket, Socket* out_socket, Ipv4Address* out_remoteAddress );
-    using socket_connect_fn = bool( Socket socket, Ipv4Address const& ipv4Address );
+    using socket_accept_fn = bool( Socket socket, Socket* out_socket, Ipv4AddressWithPort* out_remoteAddress );
+    using socket_connect_fn = bool( Socket socket, Ipv4AddressWithPort const& to );
     using socket_send_fn = bool( Socket socket, char const* data, s32 size );
     using socket_receive_fn = bool( Socket socket, char* receiveBuffer, s32 receiveBufferSize, s32* out_bytesReceived );
+    using dns_resolve_hostname_fn = bool( char const* hostname, ResolveHostnameResult* out_result );
     using socket_get_last_error_message_fn = void( char* buffer, s32 bufferSize );
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,9 +96,13 @@ namespace bse
     ////////// Debug /////////////////////////////////////////////////////////////////////////////////////
     platformcallback::debug_log_fn* debug_log;
     ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
-    platformcallback::allocate_virtual_memory_fn* allocate_virtual_memory;
-    platformcallback::decommit_virtual_memory_fn* decommit_virtual_memory;
-    platformcallback::free_virtual_memory_fn* free_virtual_memory;
+    platformcallback::memory_allocate_virtual_fn* memory_allocate_virtual;
+    platformcallback::memory_decommit_virtual_fn* memory_decommit_virtual;
+    platformcallback::memory_free_virtual_fn* memory_free_virtual;
+    platformcallback::memory_allocate_dont_remember_size_fn* memory_allocate_dont_remember_size;
+    platformcallback::memory_reallocate_dont_remember_size_fn* memory_reallocate_dont_remember_size;
+    platformcallback::memory_free_dont_remember_size_fn* memory_free_dont_remember_size;
+
     ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
     platformcallback::get_file_info_fn* get_file_info;
     platformcallback::load_file_part_fn* load_file_part;
@@ -121,6 +130,7 @@ namespace bse
     platformcallback::socket_connect_fn* socket_connect;
     platformcallback::socket_send_fn* socket_send;
     platformcallback::socket_receive_fn* socket_receive;
+    platformcallback::dns_resolve_hostname_fn* dns_resolve_hostname;
     platformcallback::socket_get_last_error_message_fn* socket_get_last_error_message;
     ////////// System ////////////////////////////////////////////////////////////////////////////////////
     platformcallback::shutdown_fn* shutdown;
