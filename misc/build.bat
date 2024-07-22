@@ -9,7 +9,7 @@ set BSE_APP_PATH=""
 set BSE_OUT_NAME=
 set BSE_OUT_PATH=
 set BSE_CODE_PATH=
-set BSE_INCLUDE_PATHS=""
+set BSE_INCLUDE_PATHS=
 set BSE_LIBRARY_PATHS=""
 set BSE_BAT_PATH=%~dp0
 
@@ -57,7 +57,7 @@ IF NOT "%~0"=="" (
   )
   IF "%~0"=="-include" (
     IF NOT "%~1"=="" (
-      set BSE_INCLUDE_PATHS="%~1"
+      set BSE_INCLUDE_PATHS=%~1
       SHIFT
     ) ELSE (
       echo '-include' needs include folder paths as parameter
@@ -84,6 +84,7 @@ IF "%BSE_OUT_PATH%"=="" ( set BSE_OUT_PATH=%BSE_BAT_PATH%..\build\bse_core )
 
 for %%A in ("%BSE_OUT_PATH%\") do set temp_path=%%~dpA
 set BSE_OUT_PATH=%temp_path%
+set BSE_OUT_PATH_ROOT=%BSE_OUT_PATH%
 
 rem default debug
 IF %BSE_BUILD_CONFIG%==Build-configuration: set BSE_BUILD_CONFIG=%BSE_BUILD_CONFIG%-debug 
@@ -107,8 +108,15 @@ set BSE_CODE_PATH=..\%BSE_CODE_PATH%
 )
 
 for %%A in ("%BSE_CODE_PATH%\") do set temp_path=%%~dpA
-set BSE_CODE_PATH=%temp_path%
-set BSE_OUT_PATH_ROOT=%BSE_OUT_PATH%
+set BSE_CODE_PATH=%temp_path:~0,-1%
+
+echo %BSE_CODE_PATH%
+
+if "%BSE_INCLUDE_PATHS%"=="" (
+  set BSE_INCLUDE_PATHS=%BSE_CODE_PATH%
+) else (
+  set BSE_INCLUDE_PATHS=%BSE_CODE_PATH%;%BSE_INCLUDE_PATHS%
+)
 
 
 echo.

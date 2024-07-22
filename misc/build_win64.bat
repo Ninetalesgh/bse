@@ -14,30 +14,28 @@ IF NOT DEFINED BSE_CODE_PATH (
 setlocal EnableDelayedExpansion
 pushd "%BSE_OUT_PATH%"
 
-set additional_includes="%BSE_INCLUDE_PATHS:;=" "%"
-set additional_includes=%additional_includes:""="%
-set additional_includes=%additional_includes:/=\%
-IF NOT %BSE_INCLUDE_PATHS%=="" (
-  echo Additional include paths: %additional_includes%
-  set additional_includes=/I %additional_includes:" "=" /I "%
-)
+set include_paths="%VULKAN_SDK%\Include" "%BSE_INCLUDE_PATHS:;=" "%"
+set include_paths=%include_paths:""="%
+set include_paths=%include_paths:/=\%
 
-set additional_libraries="%BSE_LIBRARY_PATHS:;=" "%"
-set additional_libraries=%additional_libraries:""="%
-set additional_libraries=%additional_libraries:/=\%
+echo Include paths:
+echo - %include_paths:" "=" & echo - "%
+set include_paths=/I %include_paths:" "=" /I "%
+set library_paths="%BSE_LIBRARY_PATHS:;=" "%"
+set library_paths=%library_paths:""="%
+set library_paths=%library_paths:/=\%
+
 IF NOT %BSE_LIBRARY_PATHS%=="" (
-  echo Additional dependencies:  %additional_libraries% 
-  IF NOT %BSE_INCLUDE_PATHS%=="" (
-    echo --------------------------------------------------------------
-  )
+  echo Dependency paths:
+  echo - %library_paths:" "=" & echo - "% 
+  echo --------------------------------------------------------------
 )
 
-set core_includes=/I "%BSE_CODE_PATH%\" /I "%VULKAN_SDK%\Include"
 set core_libraries="%VULKAN_SDK%\Lib\vulkan-1.lib"
 
-set compiler_options=%core_includes% %additional_includes% /DBSE_PLATFORM_WINDOWS /GR- /EHa- /FC /MT /nologo /volatile:iso /W4 /wd4068 /wd4100 /wd4201 /wd4701 /wd4189 /wd4530
+set compiler_options=%include_paths% /DBSE_PLATFORM_WINDOWS /GR- /EHa- /FC /MT /nologo /volatile:iso /W4 /wd4068 /wd4100 /wd4201 /wd4701 /wd4189 /wd4530
 IF NOT %BSE_APP_PATH%=="" set compiler_options=%compiler_options% /DBSE_BUILD_APP_PATH=%BSE_APP_PATH%
-set linker_options=/link /opt:ref /incremental:no %core_libraries% %additional_libraries%
+set linker_options=/link /opt:ref /incremental:no %core_libraries% %library_paths%
 set app_exports=/EXPORT:core_initialize_internal /EXPORT:core_on_reload_internal /EXPORT:core_tick_internal
 
 @REM ------------------------------------------------------------------------
@@ -104,11 +102,13 @@ popd
 goto end
 
 :error_section_compile
-  popd rem debug/development/release
+  rem debug/development/release
+  popd 
   goto error_section
 
 :error_section
-  popd rem %BSE_OUT_PATH%
+  rem %BSE_OUT_PATH%
+  popd 
   echo ==============================================================
   echo --------------------------------------------------------------
   echo -- ERRORS BUILDING WIN64, PLEASE READ THE LOGS ABOVE --------- 

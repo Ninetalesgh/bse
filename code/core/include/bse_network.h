@@ -20,7 +20,7 @@ namespace bse
   constexpr u32 IPv4_ADDRESS_INVALID = U32_MAX;
   constexpr u16 PORT_ANY = 0;
   constexpr u16 PORT_INVALID = U16_MAX;
-  constexpr s32 BSE_NETWORK_ERROR = -1;
+  constexpr s32 BSE_SOCKET_ERROR = -1;
   using Socket = s32;
 
   struct Ipv4Address

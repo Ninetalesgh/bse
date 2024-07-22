@@ -1,7 +1,6 @@
 #include "bse_android.h"
 #include "bse_android_platform_callbacks.h"
 
-
 #include <string>
 
 #include "core/bse_core.cpp"

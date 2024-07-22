@@ -17,9 +17,9 @@ namespace android
   ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  void* allocate_virtual_memory( s64 size );
-  void free_virtual_memory( void* allocationToFree, s64 size );
-  void decommit_virtual_memory( void* committedMemory, s64 size );
+  void* memory_allocate_virtual( s64 size );
+  void memory_free_virtual( void* allocationToFree, s64 size );
+  void memory_decommit_virtual( void* committedMemory, s64 size );
 
   // //////////////////////////////////////////////////////////////////////////////////////////////////////
   // ////////// File IO ///////////////////////////////////////////////////////////////////////////////////
@@ -87,7 +87,7 @@ namespace android
   ////////// Memory ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  void* allocate_virtual_memory( s64 size )
+  void* memory_allocate_virtual( s64 size )
   {
     if ( size > MegaBytes( 1 ) )
     {
@@ -122,7 +122,7 @@ namespace android
     return result;
   }
 
-  // void decommit_virtual_memory( void* committedMemory, s64 size )
+  // void memory_decommit_virtual( void* committedMemory, s64 size )
   // {
   //   if ( VirtualFree( committedMemory, size, MEM_DECOMMIT ) )
   //   {
@@ -130,7 +130,7 @@ namespace android
   //   }
   // }
 
-  void free_virtual_memory( void* allocationToFree, s64 size )
+  void memory_free_virtual( void* allocationToFree, s64 size )
   {
     if ( munmap( allocationToFree, size ) != 0 )
     {
@@ -429,9 +429,9 @@ namespace android
     global::platform.debug_log = &debug_log;
 
     // ////////// Memory //////////////////////////////////////////////////////////////////////////////////
-    global::platform.allocate_virtual_memory = &allocate_virtual_memory;
-    // global::platform.free_virtual_memory = &free_virtual_memory;
-    // global::platform.decommit_virtual_memory = &decommit_virtual_memory;
+    global::platform.memory_allocate_virtual = &memory_allocate_virtual;
+    // global::platform.memory_free_virtual = &memory_free_virtual;
+    // global::platform.memory_decommit_virtual = &memory_decommit_virtual;
 
     // ////////// File IO /////////////////////////////////////////////////////////////////////////////////
     // global::platform.get_file_info = &get_file_info;

@@ -22,7 +22,7 @@ namespace bse
     {
       bse::Socket socket;
       SSL* ssl;
-      bse::Ipv4AddressWithPort peer;
+      bse::Ipv4AddressWithPort peerAddress;
     };
 
     //SSL* connect( SSL_CTX* context, bse::Ipv4AddressWithPort const& remoteAddress );
@@ -95,7 +95,7 @@ namespace bse
     bool connect( SSL_CTX* context, char const* hostname, u16 port, TLSConnection* out_connection )
     {
       bse::Socket socket = socket_create_tcp();
-      if ( socket == BSE_NETWORK_ERROR )
+      if ( socket == BSE_SOCKET_ERROR )
       {
         log_warning( "openssl::connect() failed, unable to create socket." );
         return false;
@@ -131,7 +131,7 @@ namespace bse
         socket_destroy( socket );
       }
 
-      if ( !SSL_set_fd( ssl, socket ) || SSL_connect( ssl ) == BSE_NETWORK_ERROR )
+      if ( !SSL_set_fd( ssl, socket ) || SSL_connect( ssl ) == BSE_SOCKET_ERROR )
       {
         openssl::log_last_errors();
         SSL_free( ssl );
@@ -151,6 +151,8 @@ namespace bse
         SSL_free( connection->ssl );
       }
       socket_destroy( connection->socket );
+      connection->ssl = nullptr;
+      connection->socket = BSE_SOCKET_ERROR;
     }
 
   };

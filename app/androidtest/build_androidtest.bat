@@ -16,8 +16,9 @@ set app_name="%~n0"
 set app_name=%app_name:build_=%
 set app_name=%app_name:"=%
 set cpp_path="%~dp0%app_name%.cpp"
-pushd %misc_path%
-call build.bat -app %cpp_path% %*
 
+pushd %misc_path%
+  call build.bat -app %cpp_path% %* 
 popd
+
 :end

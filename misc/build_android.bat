@@ -30,7 +30,8 @@ set keypass=bse_generic_password
 set java_src_path=%src_path%\java
 set cpp_src_path=%src_path%\cpp
 
-set compiler_options=-I "%BSE_CODE_PATH%\" --sysroot=%sysroot% -g -DANDROID -DBSE_PLATFORM_ANDROID -std=c++20 -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wformat -Wall -Werror=format-security -fno-limit-debug-info -fPIC
+set compiler_options=-I "%BSE_CODE_PATH%" --sysroot=%sysroot% -g -DANDROID -DBSE_PLATFORM_ANDROID -std=c++20 -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wformat -Wall -Werror=format-security -fno-limit-debug-info -fPIC
+
 IF NOT %BSE_APP_PATH%=="" set compiler_options=%compiler_options% -DBSE_BUILD_APP_PATH=%BSE_APP_PATH%
 set linker_options=-lGLESv3 -lvulkan -static-libstdc++ -shared -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--fatal-warnings -Wl,--gc-sections -Wl,--no-undefined -Qunused-arguments -landroid -llog -latomic -lm 
 
@@ -192,11 +193,13 @@ goto end
 goto end
 
 :error_section_compile
-  popd rem debug/development/release
+  rem debug/development/release
+  popd 
   goto error_section
 
 :error_section
-  popd rem %BSE_OUT_PATH%
+  rem %BSE_OUT_PATH%
+  popd 
   echo ==============================================================
   echo --------------------------------------------------------------
   echo -- ERRORS BUILDING ANDROID, PLEASE READ THE LOGS ABOVE ------- 
